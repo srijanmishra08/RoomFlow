@@ -1,0 +1,296 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth.js Models ───────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Domain Models ────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  DESIGNER
+  CLIENT
+}
+
+enum ObjectStatus {
+  PLANNED
+  IN_PROGRESS
+  FINALIZED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  role          Role      @default(DESIGNER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions       Session[]
+
+  designer       Designer?
+  client         Client?
+  comments       Comment[]
+  activities     Activity[]
+  approvals      Approval[]
+  subscription   Subscription?
+  notifications  Notification[]
+}
+
+model Designer {
+  id         String  @id @default(cuid())
+  userId     String  @unique
+  studioName String?
+  phone      String?
+  bio        String? @db.Text
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clients  Client[]
+  projects Project[]
+  assets   Asset[]
+}
+
+model Client {
+  id         String  @id @default(cuid())
+  userId     String  @unique
+  designerId String
+  phone      String?
+  address    String? @db.Text
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designer Designer  @relation(fields: [designerId], references: [id], onDelete: Cascade)
+  projects Project[]
+}
+
+model Project {
+  id         String        @id @default(cuid())
+  designerId String
+  clientId   String?
+  title      String
+  description String?      @db.Text
+  status     ProjectStatus @default(ACTIVE)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  designer   Designer   @relation(fields: [designerId], references: [id], onDelete: Cascade)
+  client     Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  rooms      Room[]
+  activities Activity[]
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  width     Float    @default(5)
+  height    Float    @default(3)
+  depth     Float    @default(5)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  objects RoomObject[]
+}
+
+model RoomObject {
+  id        String       @id @default(cuid())
+  roomId    String
+  name      String
+  modelUrl  String?
+  positionX Float        @default(0)
+  positionY Float        @default(0)
+  positionZ Float        @default(0)
+  rotationX Float        @default(0)
+  rotationY Float        @default(0)
+  rotationZ Float        @default(0)
+  scaleX    Float        @default(1)
+  scaleY    Float        @default(1)
+  scaleZ    Float        @default(1)
+  status    ObjectStatus @default(PLANNED)
+  material  String?
+  brand     String?
+  supplier  String?
+  cost      Float?
+  currency  String       @default("INR")
+  deliveryDate DateTime?
+  color     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  room      Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  comments  Comment[]
+  approvals Approval[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  objectId  String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  object RoomObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id         String   @id @default(cuid())
+  designerId String
+  name       String
+  fileUrl    String
+  fileType   String   @default("glb")
+  thumbnail  String?
+  category   String?
+  tags       String[]
+  createdAt  DateTime @default(now())
+
+  designer Designer @relation(fields: [designerId], references: [id], onDelete: Cascade)
+}
+
+// ─── Activity Log ─────────────────────────────────────────────
+
+enum ActivityType {
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_ARCHIVED
+  ROOM_CREATED
+  ROOM_UPDATED
+  ROOM_DELETED
+  OBJECT_ADDED
+  OBJECT_UPDATED
+  OBJECT_DELETED
+  OBJECT_APPROVED
+  OBJECT_REJECTED
+  COMMENT_ADDED
+  CLIENT_INVITED
+  STATUS_CHANGED
+}
+
+model Activity {
+  id        String       @id @default(cuid())
+  projectId String
+  userId    String
+  type      ActivityType
+  message   String
+  metadata  Json?
+  createdAt DateTime     @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt(sort: Desc)])
+}
+
+// ─── Approval System ──────────────────────────────────────────
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+model Approval {
+  id        String         @id @default(cuid())
+  objectId  String
+  userId    String
+  status    ApprovalStatus @default(PENDING)
+  note      String?        @db.Text
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  object RoomObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([objectId])
+}
+
+// ─── Subscription / Billing ───────────────────────────────────
+
+enum PlanTier {
+  FREE
+  STARTER
+  PRO
+  STUDIO
+}
+
+model Subscription {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  plan              PlanTier @default(FREE)
+  stripeCustomerId  String?  @unique
+  stripeSubId       String?  @unique
+  stripePriceId     String?
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Notifications ────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}

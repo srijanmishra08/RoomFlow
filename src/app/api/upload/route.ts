@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { put } from "@vercel/blob";
 import { v4 as uuid } from "uuid";
 
 const ALLOWED_EXTENSIONS = new Set(["glb", "gltf", "obj", "fbx", "png", "jpg", "jpeg", "webp"]);
@@ -45,17 +44,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Generate unique filename
   const filename = `${uuid()}.${ext}`;
-  const uploadDir = join(process.cwd(), "public", "uploads");
 
-  await mkdir(uploadDir, { recursive: true });
+  // Upload to Vercel Blob storage
+  const blob = await put(`assets/${filename}`, file, {
+    access: "public",
+    addRandomSuffix: false,
+  });
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const filepath = join(uploadDir, filename);
-  await writeFile(filepath, buffer);
-
-  const fileUrl = `/uploads/${filename}`;
+  const fileUrl = blob.url;
   const isModel = ["glb", "gltf", "obj", "fbx"].includes(ext);
 
   // Create asset record

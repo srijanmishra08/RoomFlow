@@ -23,7 +23,15 @@ export async function GET(
       rooms: {
         include: {
           objects: {
-            include: { comments: { include: { user: { select: { name: true } } } } },
+            take: 100,
+            orderBy: { createdAt: "desc" },
+            include: {
+              comments: {
+                take: 20,
+                orderBy: { createdAt: "desc" },
+                include: { user: { select: { name: true } } },
+              },
+            },
           },
         },
       },

@@ -17,10 +17,13 @@ export async function GET(
       rooms: {
         include: {
           objects: {
+            take: 100,
+            orderBy: { createdAt: "desc" },
             include: {
               comments: {
-                include: { user: { select: { name: true, role: true } } },
+                take: 20,
                 orderBy: { createdAt: "desc" },
+                include: { user: { select: { name: true, role: true } } },
               },
             },
           },

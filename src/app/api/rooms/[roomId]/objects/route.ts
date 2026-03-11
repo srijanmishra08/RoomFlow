@@ -18,8 +18,10 @@ export async function GET(
 
   const objects = await prisma.roomObject.findMany({
     where: { roomId },
+    take: 200,
     include: {
       comments: {
+        take: 20,
         include: { user: { select: { name: true, email: true } } },
         orderBy: { createdAt: "desc" },
       },

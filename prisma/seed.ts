@@ -221,7 +221,7 @@ async function main() {
     data: {
       designerId,
       name: "Modern Chair",
-      fileUrl: "https://polyhaven.com/a/modern_arm_chair",
+      fileUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb",
       fileType: "glb",
       category: "Furniture",
       tags: ["chair", "modern", "living room"],
@@ -231,11 +231,11 @@ async function main() {
   await prisma.asset.create({
     data: {
       designerId,
-      name: "Wooden Desk",
-      fileUrl: "https://polyhaven.com/a/wooden_desk",
+      name: "Wooden Box",
+      fileUrl: "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Box/glTF-Binary/Box.glb",
       fileType: "glb",
       category: "Furniture",
-      tags: ["desk", "wood", "office"],
+      tags: ["box", "wood", "storage"],
     },
   });
 

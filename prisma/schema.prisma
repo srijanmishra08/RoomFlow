@@ -129,14 +129,22 @@ model Project {
 }
 
 model Room {
-  id        String   @id @default(cuid())
-  projectId String
-  name      String
-  width     Float    @default(5)
-  height    Float    @default(3)
-  depth     Float    @default(5)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  projectId       String
+  name            String
+  width           Float    @default(5)
+  height          Float    @default(3)
+  depth           Float    @default(5)
+  // Polygon floor plan: array of {x,z} points. If set, replaces cuboid shape.
+  floorPoints     Json?    // [{x: number, z: number}, ...]
+  // Direct 3D file for the entire room (uploaded .glb/.gltf from Blender/AutoCAD)
+  modelUrl        String?
+  // Surface materials
+  floorMaterial   Json?    // {type: "color"|"texture", value: string, repeat?: number}
+  wallMaterial    Json?    // {type: "color"|"texture", value: string, repeat?: number}
+  ceilingMaterial Json?    // {type: "color"|"texture", value: string, repeat?: number}
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   objects RoomObject[]

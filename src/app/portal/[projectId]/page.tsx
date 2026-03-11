@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ObjectInspector } from "@/components/three/ObjectInspector";
 import type { RoomObjectData } from "@/components/three/RoomViewer";
+import type { SurfaceMaterial, FloorPoint } from "@/components/three/RoomBox";
 
 const RoomViewer = dynamic(
   () => import("@/components/three/RoomViewer").then((mod) => mod.RoomViewer),
@@ -24,6 +25,11 @@ interface PortalRoom {
   width: number;
   height: number;
   depth: number;
+  floorPoints?: FloorPoint[] | null;
+  modelUrl?: string | null;
+  floorMaterial?: SurfaceMaterial | null;
+  wallMaterial?: SurfaceMaterial | null;
+  ceilingMaterial?: SurfaceMaterial | null;
   objects: RoomObjectData[];
 }
 
@@ -291,6 +297,11 @@ export default function ClientPortalPage() {
                   selectedId={selectedId}
                   onSelect={setSelectedId}
                   isEditable={false}
+                  floorPoints={activeRoom.floorPoints}
+                  roomModelUrl={activeRoom.modelUrl}
+                  floorMaterial={activeRoom.floorMaterial}
+                  wallMaterial={activeRoom.wallMaterial}
+                  ceilingMaterial={activeRoom.ceilingMaterial}
                 />
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { createRoomSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
 
@@ -55,10 +56,16 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const { floorPoints, floorMaterial, wallMaterial, ceilingMaterial, ...rest } = parsed.data;
+
   const room = await prisma.room.create({
     data: {
-      ...parsed.data,
+      ...rest,
       projectId: id,
+      floorPoints: floorPoints === null ? Prisma.JsonNull : floorPoints === undefined ? undefined : floorPoints,
+      floorMaterial: floorMaterial === null ? Prisma.JsonNull : floorMaterial === undefined ? undefined : floorMaterial,
+      wallMaterial: wallMaterial === null ? Prisma.JsonNull : wallMaterial === undefined ? undefined : wallMaterial,
+      ceilingMaterial: ceilingMaterial === null ? Prisma.JsonNull : ceilingMaterial === undefined ? undefined : ceilingMaterial,
     },
   });
 

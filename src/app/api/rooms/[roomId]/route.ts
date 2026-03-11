@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { updateRoomSchema } from "@/lib/validations";
 
 // PATCH /api/rooms/[roomId] – update room
@@ -39,9 +40,20 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const { floorPoints, floorMaterial, wallMaterial, ceilingMaterial, ...rest } = parsed.data;
+
+  const jsonField = (v: unknown) =>
+    v === null ? Prisma.JsonNull : v === undefined ? undefined : v;
+
   const updated = await prisma.room.update({
     where: { id: roomId },
-    data: parsed.data,
+    data: {
+      ...rest,
+      floorPoints: jsonField(floorPoints),
+      floorMaterial: jsonField(floorMaterial),
+      wallMaterial: jsonField(wallMaterial),
+      ceilingMaterial: jsonField(ceilingMaterial),
+    },
   });
 
   return NextResponse.json(updated);

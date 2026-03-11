@@ -31,11 +31,23 @@ export const updateProjectSchema = z.object({
 
 // ─── Rooms ────────────────────────────────────────────────────
 
+const floorPointSchema = z.object({ x: z.number(), z: z.number() });
+const surfaceMaterialSchema = z.object({
+  type: z.enum(["color", "texture"]),
+  value: z.string(),
+  repeat: z.number().positive().optional(),
+});
+
 export const createRoomSchema = z.object({
   name: z.string().min(1, "Room name is required"),
   width: z.number().positive().default(5),
   height: z.number().positive().default(3),
   depth: z.number().positive().default(5),
+  floorPoints: z.array(floorPointSchema).min(3).optional().nullable(),
+  modelUrl: z.string().optional().nullable(),
+  floorMaterial: surfaceMaterialSchema.optional().nullable(),
+  wallMaterial: surfaceMaterialSchema.optional().nullable(),
+  ceilingMaterial: surfaceMaterialSchema.optional().nullable(),
 });
 
 export const updateRoomSchema = z.object({
@@ -43,13 +55,18 @@ export const updateRoomSchema = z.object({
   width: z.number().positive().optional(),
   height: z.number().positive().optional(),
   depth: z.number().positive().optional(),
+  floorPoints: z.array(floorPointSchema).min(3).optional().nullable(),
+  modelUrl: z.string().optional().nullable(),
+  floorMaterial: surfaceMaterialSchema.optional().nullable(),
+  wallMaterial: surfaceMaterialSchema.optional().nullable(),
+  ceilingMaterial: surfaceMaterialSchema.optional().nullable(),
 });
 
 // ─── Objects ──────────────────────────────────────────────────
 
 export const createObjectSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  modelUrl: z.string().url().optional().nullable(),
+  modelUrl: z.string().optional().nullable(),
   positionX: z.number().default(0),
   positionY: z.number().default(0),
   positionZ: z.number().default(0),

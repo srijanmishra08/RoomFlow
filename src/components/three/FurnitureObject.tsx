@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo, useEffect, Component, type ReactNode } from "react";
 import { useLoader } from "@react-three/fiber";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
@@ -19,6 +19,22 @@ function statusToColor(status: string): string {
   }
 }
 
+// Category-based shape/color for placeholder objects
+function categoryStyle(name: string): { color: string; geometry: "box" | "cylinder" | "sphere" } {
+  const lower = name.toLowerCase();
+  if (lower.includes("chair") || lower.includes("sofa") || lower.includes("couch"))
+    return { color: "#6366f1", geometry: "box" };
+  if (lower.includes("table") || lower.includes("desk"))
+    return { color: "#8b5cf6", geometry: "box" };
+  if (lower.includes("lamp") || lower.includes("light"))
+    return { color: "#f59e0b", geometry: "cylinder" };
+  if (lower.includes("plant") || lower.includes("pot"))
+    return { color: "#22c55e", geometry: "sphere" };
+  if (lower.includes("bed") || lower.includes("mattress"))
+    return { color: "#ec4899", geometry: "box" };
+  return { color: "#64748b", geometry: "box" };
+}
+
 interface FurnitureObjectProps {
   data: RoomObjectData;
   isSelected: boolean;
@@ -26,18 +42,38 @@ interface FurnitureObjectProps {
   isEditable: boolean;
 }
 
-// Placeholder box when no GLTF model URL is provided
+// Error boundary to catch GLTF load failures inside Canvas
+class ModelErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; fallback: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+// Placeholder box when no GLTF model URL is provided (or when load fails)
 function PlaceholderBox({
   data,
   isSelected,
   onClick,
+  label,
 }: {
   data: RoomObjectData;
   isSelected: boolean;
   onClick: () => void;
+  label?: string;
 }) {
-  const color = data.color || statusToColor(data.status);
-  const meshRef = useRef<THREE.Mesh>(null);
+  const style = categoryStyle(data.name);
+  const color = data.color || (isSelected ? "#3b82f6" : style.color);
 
   return (
     <group
@@ -46,18 +82,22 @@ function PlaceholderBox({
       scale={[data.scaleX, data.scaleY, data.scaleZ]}
     >
       <mesh
-        ref={meshRef}
         castShadow
+        receiveShadow
         onClick={(e) => {
           e.stopPropagation();
           onClick();
         }}
       >
-        <boxGeometry args={[1, 1, 1]} />
+        {style.geometry === "box" && <boxGeometry args={[1, 1, 1]} />}
+        {style.geometry === "cylinder" && <cylinderGeometry args={[0.3, 0.4, 1.2, 16]} />}
+        {style.geometry === "sphere" && <sphereGeometry args={[0.5, 16, 16]} />}
         <meshStandardMaterial
           color={color}
           transparent
-          opacity={isSelected ? 1 : 0.8}
+          opacity={isSelected ? 1 : 0.85}
+          roughness={0.6}
+          metalness={0.1}
         />
       </mesh>
 
@@ -122,24 +162,43 @@ function GLTFModel({
   );
 }
 
+// Check if a URL looks like it could be a valid GLTF/GLB resource
+function isValidModelUrl(url: string | null | undefined): boolean {
+  if (!url || url.trim() === "") return false;
+  // Reject obvious non-model URLs (HTML pages, polyhaven browse pages, etc.)
+  if (url.includes("polyhaven.com/a/")) return false;
+  // Must end in .glb/.gltf OR be a proper API URL
+  const lower = url.toLowerCase();
+  if (lower.endsWith(".glb") || lower.endsWith(".gltf")) return true;
+  if (lower.includes(".glb?") || lower.includes(".gltf?")) return true;
+  // Allow blob/data URLs and API endpoints that serve models
+  if (url.startsWith("blob:") || url.startsWith("data:")) return true;
+  if (url.startsWith("/api/") || url.startsWith("/uploads/")) return true;
+  return false;
+}
+
 export function FurnitureObject({
   data,
   isSelected,
   onClick,
   isEditable,
 }: FurnitureObjectProps) {
-  if (data.modelUrl) {
+  const placeholder = (
+    <PlaceholderBox data={data} isSelected={isSelected} onClick={onClick} />
+  );
+
+  if (isValidModelUrl(data.modelUrl)) {
     return (
-      <GLTFModel
-        url={data.modelUrl}
-        data={data}
-        isSelected={isSelected}
-        onClick={onClick}
-      />
+      <ModelErrorBoundary fallback={placeholder}>
+        <GLTFModel
+          url={data.modelUrl!}
+          data={data}
+          isSelected={isSelected}
+          onClick={onClick}
+        />
+      </ModelErrorBoundary>
     );
   }
 
-  return (
-    <PlaceholderBox data={data} isSelected={isSelected} onClick={onClick} />
-  );
+  return placeholder;
 }

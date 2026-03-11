@@ -3,7 +3,7 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment } from "@react-three/drei";
 import { Suspense, useState } from "react";
-import { RoomBox } from "./RoomBox";
+import { RoomBox, type SurfaceMaterial, type FloorPoint } from "./RoomBox";
 import { FurnitureObject } from "./FurnitureObject";
 import { ObjectInspector } from "./ObjectInspector";
 
@@ -45,6 +45,11 @@ interface RoomViewerProps {
   onSelect: (id: string | null) => void;
   isEditable?: boolean;
   onObjectMove?: (id: string, x: number, y: number, z: number) => void;
+  floorPoints?: FloorPoint[] | null;
+  roomModelUrl?: string | null;
+  floorMaterial?: SurfaceMaterial | null;
+  wallMaterial?: SurfaceMaterial | null;
+  ceilingMaterial?: SurfaceMaterial | null;
 }
 
 export function RoomViewer({
@@ -55,6 +60,11 @@ export function RoomViewer({
   selectedId,
   onSelect,
   isEditable = false,
+  floorPoints,
+  roomModelUrl,
+  floorMaterial,
+  wallMaterial,
+  ceilingMaterial,
 }: RoomViewerProps) {
   return (
     <div className="canvas-container w-full h-full rounded-xl overflow-hidden border border-[var(--border)]">
@@ -63,34 +73,44 @@ export function RoomViewer({
         shadows
       >
         <Suspense fallback={null}>
-          <ambientLight intensity={0.5} />
+          <ambientLight intensity={0.6} />
           <directionalLight
             position={[5, 10, 5]}
-            intensity={1}
+            intensity={1.2}
             castShadow
             shadow-mapSize-width={2048}
             shadow-mapSize-height={2048}
           />
-          <pointLight position={[0, height - 0.5, 0]} intensity={0.3} />
+          <pointLight position={[0, height - 0.5, 0]} intensity={0.4} color="#fff5e6" />
+          <hemisphereLight args={["#ffeebb", "#080820", 0.3]} />
 
-          {/* Room wireframe */}
-          <RoomBox width={width} height={height} depth={depth} />
+          {/* Room structure */}
+          <RoomBox
+            width={width}
+            height={height}
+            depth={depth}
+            floorPoints={floorPoints}
+            modelUrl={roomModelUrl}
+            floorMaterial={floorMaterial}
+            wallMaterial={wallMaterial}
+            ceilingMaterial={ceilingMaterial}
+          />
 
           {/* Floor grid */}
           <Grid
             args={[width * 2, depth * 2]}
             position={[0, 0.01, 0]}
             cellSize={0.5}
-            cellColor="#ddd"
+            cellColor="#d4c9b8"
             sectionSize={1}
-            sectionColor="#bbb"
+            sectionColor="#b8a99a"
             fadeDistance={25}
           />
 
-          {/* Floor plane (for shadows) */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0, 0]}>
+          {/* Shadow plane */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0.002, 0]}>
             <planeGeometry args={[width, depth]} />
-            <shadowMaterial opacity={0.15} />
+            <shadowMaterial opacity={0.2} />
           </mesh>
 
           {/* Objects */}
@@ -110,7 +130,7 @@ export function RoomViewer({
             minDistance={2}
             maxDistance={30}
           />
-          <Environment preset="city" />
+          <Environment preset="apartment" />
         </Suspense>
       </Canvas>
     </div>

@@ -43,7 +43,7 @@ export async function PATCH(
       completedAt:
         parsed.data.status === "COMPLETED"
           ? new Date()
-          : parsed.data.status && parsed.data.status !== "COMPLETED"
+          : parsed.data.status
           ? null
           : undefined,
     },

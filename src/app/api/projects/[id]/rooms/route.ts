@@ -62,7 +62,7 @@ export async function POST(
     return NextResponse.json({ error: planBlock.error }, { status: planBlock.status });
   }
 
-  const { floorPoints, floorMaterial, wallMaterial, ceilingMaterial, ...rest } = parsed.data;
+  const { floorPoints, floorMaterial, wallMaterial, ceilingMaterial, openings, ...rest } = parsed.data;
 
   const room = await prisma.room.create({
     data: {
@@ -72,6 +72,7 @@ export async function POST(
       floorMaterial: floorMaterial === null ? Prisma.JsonNull : floorMaterial === undefined ? undefined : floorMaterial,
       wallMaterial: wallMaterial === null ? Prisma.JsonNull : wallMaterial === undefined ? undefined : wallMaterial,
       ceilingMaterial: ceilingMaterial === null ? Prisma.JsonNull : ceilingMaterial === undefined ? undefined : ceilingMaterial,
+      openings: openings === null ? Prisma.JsonNull : openings === undefined ? undefined : openings,
     },
   });
 

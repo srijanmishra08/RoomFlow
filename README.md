@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RoomFlow
 
-## Getting Started
+Browser-based interior-design platform — a Foyr Neo–style competitor. Draw floor
+plans, drop in furniture, apply real-time materials, render photorealistic
+stills and 360° panoramas, and run a full studio: client portal, quotes,
+invoices, tasks, team roles, and billing — all in the browser.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** (App Router) + **React 19**, TypeScript
+- **Prisma 7** + **PostgreSQL** (Neon in production)
+- **Auth.js v5** (credentials + Google OAuth)
+- **Three.js** via `@react-three/fiber` / `@react-three/drei` for the 3D editor
+- **Vercel Blob** for file storage, **Upstash Redis** for rate limiting
+- **Stripe** for billing, **Sentry** + **PostHog** for observability
+
+## Features
+
+- **3D room editor** — polygon & preset floor shapes, drag/rotate/scale gizmos,
+  multi-select + group move, undo/redo, copy/paste, edge/wall snapping,
+  measurement tool
+- **Furniture catalog** — procedural mesh furniture (no GLB required),
+  category browser, AI-assisted auto-furnish, style restyle
+- **Materials** — procedural PBR texture library (wood, marble, tile, brick,
+  concrete, fabric) for floor/wall/ceiling, plus flat color
+- **Doors & windows** — real wall cutouts with glass/frame trim, draggable
+  directly on the 2D floor plan
+- **Rendering** — snapshot / 1080p / 4K stills, 360° equirectangular panorama
+  capture, saved render gallery
+- **Revisions** — 3D file upload, floor-plan-image → 3D, render-image → 3D
+- **Studio ops** — client portal (approvals, comments, quotes), invoices,
+  task board, project drive, activity timeline, saved camera views
+- **Team & billing** — Assistant/Viewer roles per studio, FREE/PRO/STUDIO plan
+  tiers with server-side gating, Stripe checkout + webhook
+- **Hardening** — per-resource ownership authz, CSRF origin checks, Redis rate
+  limiting, CSP/HSTS headers, Sentry + PostHog, CI (typecheck/lint/test/build)
+
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env      # set DATABASE_URL + AUTH_SECRET at minimum
+npm install
+npm run db:push           # create schema
+npm run db:seed           # optional demo data
+npm run dev                # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Registering a new account seeds a sample project + furnished room automatically.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint |
+| `npm test` / `npm run test:ci` | Jest unit tests |
+| `npm run test:e2e` | Playwright E2E (`npx playwright install` first) |
+| `npm run db:push` / `db:migrate` / `db:studio` / `db:seed` | Prisma workflows |
 
-## Learn More
+## Docs
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — full production deployment guide (services, env vars, checklist)
+- [`docs/ROADMAP_REMAINING.md`](docs/ROADMAP_REMAINING.md) — feature status vs Foyr Neo, what's left
+- [`docs/FOYR_TEARDOWN_AND_PLAN.md`](docs/FOYR_TEARDOWN_AND_PLAN.md) — competitive teardown that shaped this build

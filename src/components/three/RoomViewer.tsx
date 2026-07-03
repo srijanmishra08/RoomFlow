@@ -149,7 +149,7 @@ function renderEquirect(
   const faces: Uint8Array[] = [];
   for (let i = 0; i < 6; i++) {
     const buf = new Uint8Array(face * face * 4);
-    gl.readRenderTargetPixels(rt, buf, 0, 0, face, face, i);
+    gl.readRenderTargetPixels(rt, 0, 0, face, face, buf, i);
     faces.push(buf);
   }
   rt.dispose();

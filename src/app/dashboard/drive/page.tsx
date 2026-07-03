@@ -6,8 +6,9 @@ import { PROJECT_DRIVE_ROOT_FOLDERS } from "@/lib/workflow";
 export default async function DrivePage() {
   const session = await auth();
   if (!session?.user?.id) return null;
+  const userId = session.user.id;
 
-  const designer = await prisma.designer.findUnique({ where: { userId: session.user.id } });
+  const designer = await prisma.designer.findUnique({ where: { userId } });
   if (!designer) return <div>Designer profile not found.</div>;
 
   const projects = await prisma.project.findMany({
@@ -33,7 +34,7 @@ export default async function DrivePage() {
     await prisma.driveItem.createMany({
       data: missing.map((name) => ({
         projectId: activeProjectId,
-        createdById: session.user.id,
+        createdById: userId,
         type: "FOLDER",
         name,
         phase: name,

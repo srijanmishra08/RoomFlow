@@ -25,13 +25,7 @@ export async function GET() {
           bio: true,
         },
       },
-      subscription: {
-        select: {
-          plan: true,
-          currentPeriodEnd: true,
-          cancelAtPeriodEnd: true,
-        },
-      },
+
     },
   });
 

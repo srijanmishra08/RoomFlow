@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createCommentSchema } from "@/lib/validations";
 
 // POST /api/client-portal/[projectId]/comments – client adds comment on object
 export async function POST(
@@ -12,7 +11,7 @@ export async function POST(
   const { projectId } = await params;
 
   const body = await req.json();
-  const { objectId, content, guestName } = body;
+  const { objectId, content, guestName, language, audioUrl, transcript } = body;
 
   if (!objectId || !content?.trim()) {
     return NextResponse.json({ error: "objectId and content are required" }, { status: 400 });
@@ -35,6 +34,9 @@ export async function POST(
         objectId,
         userId: session.user.id,
         content: content.trim(),
+        language: language || null,
+        audioUrl: audioUrl || null,
+        transcript: transcript || null,
       },
       include: {
         user: { select: { name: true, role: true } },
@@ -56,6 +58,9 @@ export async function POST(
         objectId,
         userId: project.client.user.id,
         content: `${guestName ? `[${guestName}] ` : ""}${content.trim()}`,
+        language: language || null,
+        audioUrl: audioUrl || null,
+        transcript: transcript || null,
       },
       include: {
         user: { select: { name: true, role: true } },

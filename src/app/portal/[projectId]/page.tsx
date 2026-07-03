@@ -19,6 +19,26 @@ const RoomViewer = dynamic(
   }
 );
 
+interface PortalRevision {
+  id: string;
+  version: number;
+  label: string;
+  type: string;
+  status: string;
+  sceneUrl: string | null;
+  thumbnail: string | null;
+  createdAt: string;
+}
+
+interface PortalView {
+  id: string;
+  name: string;
+  revisionId: string | null;
+  cameraPosition: { x: number; y: number; z: number };
+  cameraRotation: { x: number; y: number; z: number };
+  target: { x: number; y: number; z: number };
+}
+
 interface PortalRoom {
   id: string;
   name: string;
@@ -30,7 +50,24 @@ interface PortalRoom {
   floorMaterial?: SurfaceMaterial | null;
   wallMaterial?: SurfaceMaterial | null;
   ceilingMaterial?: SurfaceMaterial | null;
+  revisions: PortalRevision[];
+  views: PortalView[];
   objects: RoomObjectData[];
+}
+
+interface PortalQuote {
+  id: string;
+  status: string;
+  currency: string;
+  total: number;
+  notes: string | null;
+  items: Array<{
+    id: string;
+    title: string;
+    quantity: number;
+    unitPrice: number;
+    amount: number;
+  }>;
 }
 
 interface PortalProject {
@@ -40,6 +77,7 @@ interface PortalProject {
   status: string;
   designerName: string | null;
   rooms: PortalRoom[];
+  quote: PortalQuote | null;
 }
 
 interface Approval {
@@ -62,6 +100,14 @@ export default function ClientPortalPage() {
   const [guestName, setGuestName] = useState("");
   const [approvals, setApprovals] = useState<Record<string, Approval>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [activeRevisionId, setActiveRevisionId] = useState<string | null>(null);
+  const [locale, setLocale] = useState<"en" | "hi" | "hinglish">("en");
+  const [audioUrl, setAudioUrl] = useState("");
+  const [transcript, setTranscript] = useState("");
+  const [focusView, setFocusView] = useState<{
+    cameraPosition: { x: number; y: number; z: number };
+    target: { x: number; y: number; z: number };
+  } | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -89,6 +135,7 @@ export default function ClientPortalPage() {
 
   const activeRoom = project?.rooms.find((r) => r.id === activeRoomId) || null;
   const selectedObject = activeRoom?.objects.find((o) => o.id === selectedId) || null;
+  const activeRevision = activeRoom?.revisions?.find((r) => r.id === activeRevisionId) || null;
 
   const totalObjects = project?.rooms.reduce((sum, r) => sum + r.objects.length, 0) || 0;
   const finalizedObjects = project?.rooms.reduce(
@@ -109,6 +156,9 @@ export default function ClientPortalPage() {
           objectId: selectedId,
           content: commentText.trim(),
           guestName: guestName || undefined,
+          language: locale,
+          audioUrl: audioUrl || undefined,
+          transcript: transcript || undefined,
         }),
       });
 
@@ -130,13 +180,15 @@ export default function ClientPortalPage() {
           };
         });
         setCommentText("");
+        setAudioUrl("");
+        setTranscript("");
       }
     } catch {
       // silent
     } finally {
       setSubmitting(false);
     }
-  }, [commentText, selectedId, projectId, guestName]);
+  }, [commentText, selectedId, projectId, guestName, locale, audioUrl, transcript]);
 
   const handleApproval = useCallback(
     async (status: "APPROVED" | "REJECTED" | "REVISION_REQUESTED") => {
@@ -254,6 +306,15 @@ export default function ClientPortalPage() {
                 <span className="w-2 h-2 rounded-full bg-[#22c55e]" /> Finalized
               </span>
             </div>
+            <select
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as "en" | "hi" | "hinglish")}
+              className="text-xs px-2 py-1 rounded border border-[var(--border)] bg-[var(--background)]"
+            >
+              <option value="en">English</option>
+              <option value="hi">Hindi</option>
+              <option value="hinglish">Hinglish</option>
+            </select>
           </div>
         </div>
       </header>
@@ -287,23 +348,91 @@ export default function ClientPortalPage() {
         {activeRoom ? (
           <>
             {/* 3D Viewer */}
-            <div className="flex-1 p-4">
-              <div className="h-full">
-                <RoomViewer
-                  width={activeRoom.width}
-                  height={activeRoom.height}
-                  depth={activeRoom.depth}
-                  objects={activeRoom.objects}
-                  selectedId={selectedId}
-                  onSelect={setSelectedId}
-                  isEditable={false}
-                  floorPoints={activeRoom.floorPoints}
-                  roomModelUrl={activeRoom.modelUrl}
-                  floorMaterial={activeRoom.floorMaterial}
-                  wallMaterial={activeRoom.wallMaterial}
-                  ceilingMaterial={activeRoom.ceilingMaterial}
-                />
-              </div>
+            <div className="flex-1 p-4 flex flex-col">
+              {/* Revision tabs */}
+              {activeRoom.revisions && activeRoom.revisions.length > 0 && (
+                <div className="flex items-center gap-2 mb-3 p-2 rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-x-auto">
+                  <span className="text-xs font-medium text-[var(--muted-foreground)] shrink-0">Revisions:</span>
+                  <button
+                    onClick={() => setActiveRevisionId(null)}
+                    className={`px-3 py-1 rounded text-xs whitespace-nowrap transition ${
+                      !activeRevisionId
+                        ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                        : "border border-[var(--border)] hover:border-[var(--primary)] text-[var(--muted-foreground)]"
+                    }`}
+                  >
+                    Current
+                  </button>
+                  {activeRoom.revisions.map((rev) => (
+                    <button
+                      key={rev.id}
+                      onClick={() => setActiveRevisionId(rev.id)}
+                      className={`px-3 py-1 rounded text-xs whitespace-nowrap transition ${
+                        activeRevisionId === rev.id
+                          ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                          : "border border-[var(--border)] hover:border-[var(--primary)] text-[var(--muted-foreground)]"
+                      }`}
+                      title={`v${rev.version} — ${rev.type}`}
+                    >
+                      {rev.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {activeRoom.views && activeRoom.views.length > 0 && (
+                <div className="flex items-center gap-2 mb-3 p-2 rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-x-auto">
+                  <span className="text-xs font-medium text-[var(--muted-foreground)] shrink-0">View Finder:</span>
+                  {activeRoom.views.map((view) => (
+                    <button
+                      key={view.id}
+                      onClick={() => {
+                        if (view.revisionId) setActiveRevisionId(view.revisionId);
+                        setFocusView({
+                          cameraPosition: view.cameraPosition,
+                          target: view.target,
+                        });
+                      }}
+                      className="px-3 py-1 rounded text-xs whitespace-nowrap border border-[var(--border)] hover:border-[var(--primary)]"
+                    >
+                      {view.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Revision image fallback or 3D viewer */}
+              {activeRevision && activeRevision.status === "FAILED" ? (
+                <div className="flex-1 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--secondary)] flex flex-col items-center justify-center p-4">
+                  <p className="text-3xl mb-3">⚠️</p>
+                  <p className="text-sm font-medium text-red-600">3D generation failed</p>
+                  {activeRevision.thumbnail && (
+                    <img
+                      src={activeRevision.thumbnail}
+                      alt={activeRevision.label}
+                      className="mt-4 max-h-[40%] max-w-full object-contain rounded-lg shadow-md"
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="flex-1">
+                  <RoomViewer
+                    width={activeRoom.width}
+                    height={activeRoom.height}
+                    depth={activeRoom.depth}
+                    objects={activeRoom.objects}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    isEditable={false}
+                    floorPoints={(!activeRevision || !activeRevision.sceneUrl) ? activeRoom.floorPoints : undefined}
+                    roomModelUrl={activeRevision?.sceneUrl ?? activeRoom.modelUrl}
+                    floorMaterial={activeRoom.floorMaterial}
+                    wallMaterial={activeRoom.wallMaterial}
+                    ceilingMaterial={activeRoom.ceilingMaterial}
+                    focusView={focusView}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Inspector Panel */}
@@ -384,6 +513,18 @@ export default function ClientPortalPage() {
                         placeholder="Your name (optional)"
                         className="w-full px-2 py-1.5 rounded border border-[var(--border)] bg-[var(--background)] text-xs"
                       />
+                      <input
+                        value={audioUrl}
+                        onChange={(e) => setAudioUrl(e.target.value)}
+                        placeholder="Audio note URL (optional)"
+                        className="w-full px-2 py-1.5 rounded border border-[var(--border)] bg-[var(--background)] text-xs"
+                      />
+                      <input
+                        value={transcript}
+                        onChange={(e) => setTranscript(e.target.value)}
+                        placeholder="Transcript (optional, Whisper)"
+                        className="w-full px-2 py-1.5 rounded border border-[var(--border)] bg-[var(--background)] text-xs"
+                      />
                       <div className="flex gap-2">
                         <input
                           value={commentText}
@@ -421,12 +562,14 @@ export default function ClientPortalPage() {
                   </div>
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center">
-                  <p className="text-3xl mb-3">🖱️</p>
-                  <p className="text-sm text-[var(--muted-foreground)]">
-                    Click any object to see details
-                  </p>
-                  <div className="mt-6 space-y-2 w-full">
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <p className="text-3xl mb-3">🖱️</p>
+                    <p className="text-sm text-[var(--muted-foreground)]">
+                      Click any object to see details
+                    </p>
+                  </div>
+                  <div className="space-y-2 w-full">
                     <h4 className="text-xs font-medium text-[var(--muted-foreground)] uppercase">
                       Objects in {activeRoom.name}
                     </h4>
@@ -466,6 +609,52 @@ export default function ClientPortalPage() {
                       </button>
                     ))}
                   </div>
+
+                  {project.quote && (
+                    <div className="p-3 rounded-xl border border-[var(--border)]">
+                      <h4 className="text-sm font-medium mb-2">Quotation</h4>
+                      <div className="space-y-1">
+                        {project.quote.items.map((item) => (
+                          <div key={item.id} className="flex items-center justify-between text-xs">
+                            <span>{item.title}</span>
+                            <span>{project.quote?.currency} {item.amount.toLocaleString("en-IN")}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-[var(--border)] flex items-center justify-between text-sm font-semibold">
+                        <span>Total</span>
+                        <span>{project.quote.currency} {project.quote.total.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={async () => {
+                            await fetch(`/api/client-portal/${projectId}/quote`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "approve" }),
+                            });
+                            setProject((prev) => prev ? { ...prev, quote: prev.quote ? { ...prev.quote, status: "APPROVED" } : null } : prev);
+                          }}
+                          className="flex-1 px-2 py-1 rounded text-xs bg-emerald-600 text-white"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await fetch(`/api/client-portal/${projectId}/quote`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "reject" }),
+                            });
+                            setProject((prev) => prev ? { ...prev, quote: prev.quote ? { ...prev.quote, status: "REJECTED" } : null } : prev);
+                          }}
+                          className="flex-1 px-2 py-1 rounded text-xs border border-[var(--border)]"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

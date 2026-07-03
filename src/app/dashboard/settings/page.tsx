@@ -14,11 +14,124 @@ interface Profile {
     phone: string | null;
     bio: string | null;
   } | null;
-  subscription: {
-    plan: string;
-    currentPeriodEnd: string | null;
-    cancelAtPeriodEnd: boolean;
-  } | null;
+}
+
+interface TeamMemberRow {
+  id: string;
+  role: "ASSISTANT" | "VIEWER";
+  user: { id: string; name: string | null; email: string };
+}
+
+// Studio team management: add existing RoomFlow users by email as
+// Assistant (edit) or Viewer (read-only).
+function TeamSection() {
+  const { toast } = useToast();
+  const [members, setMembers] = useState<TeamMemberRow[]>([]);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"ASSISTANT" | "VIEWER">("ASSISTANT");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings/team")
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setMembers)
+      .catch(() => {});
+  }, []);
+
+  async function invite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/settings/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), role }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMembers((prev) => [...prev.filter((m) => m.id !== data.id), data]);
+        setEmail("");
+        toast("Team member added", "success");
+      } else {
+        toast(typeof data.error === "string" ? data.error : "Failed to add member", "error");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(memberId: string) {
+    const res = await fetch(`/api/settings/team?memberId=${memberId}`, { method: "DELETE" });
+    if (res.ok) {
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+      toast("Member removed", "success");
+    } else {
+      toast("Failed to remove member", "error");
+    }
+  }
+
+  return (
+    <div className="p-6 rounded-xl border border-[var(--border)] mt-6">
+      <h2 className="font-semibold mb-1">Team</h2>
+      <p className="text-xs text-[var(--muted-foreground)] mb-4">
+        Assistants can edit your projects; Viewers get read-only access. The person must
+        already have a RoomFlow account.
+      </p>
+      <form onSubmit={invite} className="flex gap-2 mb-4">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="teammate@studio.com"
+          className="flex-1 px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm"
+        />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value as "ASSISTANT" | "VIEWER")}
+          className="px-2 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm"
+        >
+          <option value="ASSISTANT">Assistant</option>
+          <option value="VIEWER">Viewer</option>
+        </select>
+        <button
+          type="submit"
+          disabled={busy}
+          className="bg-[var(--primary)] text-[var(--primary-foreground)] px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+        >
+          Add
+        </button>
+      </form>
+      {members.length === 0 ? (
+        <p className="text-xs text-[var(--muted-foreground)]">No team members yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {members.map((m) => (
+            <li key={m.id} className="flex items-center justify-between text-sm p-2 rounded-lg border border-[var(--border)]">
+              <div className="min-w-0">
+                <p className="font-medium truncate">{m.user.name || m.user.email}</p>
+                <p className="text-xs text-[var(--muted-foreground)] truncate">{m.user.email}</p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                  m.role === "ASSISTANT" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"
+                }`}>
+                  {m.role === "ASSISTANT" ? "Assistant" : "Viewer"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => remove(m.id)}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  Remove
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export default function SettingsPage() {
@@ -160,29 +273,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Subscription info */}
-        <div className="p-6 rounded-xl border border-[var(--border)]">
-          <h2 className="font-semibold mb-4">Subscription</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">
-                {profile?.subscription?.plan || "FREE"} Plan
-              </p>
-              <p className="text-sm text-[var(--muted-foreground)]">
-                {profile?.subscription?.currentPeriodEnd
-                  ? `Renews ${new Date(profile.subscription.currentPeriodEnd).toLocaleDateString("en-IN")}`
-                  : "Free tier – upgrade for more features"}
-              </p>
-            </div>
-            <a
-              href="/dashboard/billing"
-              className="px-4 py-2 rounded-lg text-sm border border-[var(--border)] hover:bg-[var(--secondary)] transition"
-            >
-              Manage Billing
-            </a>
-          </div>
-        </div>
-
         {/* Account info */}
         <div className="p-6 rounded-xl border border-[var(--border)]">
           <h2 className="font-semibold mb-2">Account</h2>
@@ -208,6 +298,8 @@ export default function SettingsPage() {
           </button>
         </div>
       </form>
+
+      <TeamSection />
     </div>
   );
 }

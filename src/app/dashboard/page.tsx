@@ -25,10 +25,24 @@ export default async function DashboardPage() {
 
   if (!designer) return <div>Designer profile not found.</div>;
 
+  // Billing summary
+  const invoices = await prisma.invoice.findMany({
+    where: { designerId: designer.id },
+    select: { total: true, status: true },
+  });
+  const totalBilled = invoices.reduce((s, i) => s + i.total, 0);
+  const totalPaid = invoices.filter((i) => i.status === "PAID").reduce((s, i) => s + i.total, 0);
+  const totalPending = invoices.filter((i) => ["DRAFT", "SENT", "OVERDUE"].includes(i.status)).reduce((s, i) => s + i.total, 0);
+
+  function formatINR(amount: number) {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
+  }
+
   const stats = [
-    { label: "Projects", value: designer._count.projects, icon: "📁" },
-    { label: "Clients", value: designer._count.clients, icon: "👥" },
-    { label: "Assets", value: designer._count.assets, icon: "🎨" },
+    { label: "Projects", value: String(designer._count.projects), icon: "📁" },
+    { label: "Clients", value: String(designer._count.clients), icon: "👥" },
+    { label: "Assets", value: String(designer._count.assets), icon: "🎨" },
+    { label: "Billed", value: formatINR(totalBilled), icon: "💰" },
   ];
 
   return (
@@ -45,7 +59,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
         {stats.map((stat) => (
           <div
             key={stat.label}
@@ -62,6 +76,43 @@ export default async function DashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Billing Overview */}
+      <div className="rounded-xl border border-[var(--border)] mb-8">
+        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
+          <h2 className="font-semibold">Billing Overview</h2>
+          <Link
+            href="/dashboard/billing"
+            className="text-sm text-[var(--primary)] hover:underline"
+          >
+            Manage invoices →
+          </Link>
+        </div>
+        <div className="p-5 grid grid-cols-3 gap-6">
+          <div>
+            <p className="text-xs text-[var(--muted-foreground)]">Total Billed</p>
+            <p className="text-xl font-bold mt-1">{formatINR(totalBilled)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-[var(--muted-foreground)]">Paid</p>
+            <p className="text-xl font-bold mt-1 text-emerald-600">{formatINR(totalPaid)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-[var(--muted-foreground)]">Pending</p>
+            <p className="text-xl font-bold mt-1 text-amber-600">{formatINR(totalPending)}</p>
+          </div>
+        </div>
+        {invoices.length === 0 && (
+          <div className="px-5 pb-5">
+            <Link
+              href="/dashboard/billing"
+              className="text-sm text-[var(--primary)] hover:underline"
+            >
+              Create your first invoice →
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Recent Projects */}

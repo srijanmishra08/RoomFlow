@@ -38,12 +38,23 @@ const surfaceMaterialSchema = z.object({
   repeat: z.number().positive().optional(),
 });
 
+export const wallOpeningSchema = z.object({
+  wall: z.number().int().min(0),
+  offset: z.number().min(0).max(1),
+  width: z.number().positive(),
+  height: z.number().positive(),
+  sill: z.number().min(0),
+  type: z.enum(["door", "window"]),
+});
+
 export const createRoomSchema = z.object({
   name: z.string().min(1, "Room name is required"),
   width: z.number().positive().default(5),
   height: z.number().positive().default(3),
   depth: z.number().positive().default(5),
+  level: z.number().int().default(0),
   floorPoints: z.array(floorPointSchema).min(3).optional().nullable(),
+  openings: z.array(wallOpeningSchema).optional().nullable(),
   modelUrl: z.string().optional().nullable(),
   floorMaterial: surfaceMaterialSchema.optional().nullable(),
   wallMaterial: surfaceMaterialSchema.optional().nullable(),
@@ -55,7 +66,9 @@ export const updateRoomSchema = z.object({
   width: z.number().positive().optional(),
   height: z.number().positive().optional(),
   depth: z.number().positive().optional(),
+  level: z.number().int().optional(),
   floorPoints: z.array(floorPointSchema).min(3).optional().nullable(),
+  openings: z.array(wallOpeningSchema).optional().nullable(),
   modelUrl: z.string().optional().nullable(),
   floorMaterial: surfaceMaterialSchema.optional().nullable(),
   wallMaterial: surfaceMaterialSchema.optional().nullable(),
@@ -136,6 +149,80 @@ export const markNotificationReadSchema = z.object({
   notificationIds: z.array(z.string()).min(1),
 });
 
+// ─── Drive ───────────────────────────────────────────────────
+
+export const createDriveItemSchema = z.object({
+  parentId: z.string().optional().nullable(),
+  roomId: z.string().optional().nullable(),
+  name: z.string().min(1, "Name is required"),
+  type: z.enum(["FOLDER", "FILE", "LINK"]),
+  phase: z.string().optional().nullable(),
+  externalUrl: z.string().url().optional().nullable(),
+  tags: z.array(z.string()).default([]),
+});
+
+export const updateDriveItemSchema = z.object({
+  name: z.string().min(1).optional(),
+  parentId: z.string().optional().nullable(),
+  phase: z.string().optional().nullable(),
+  tags: z.array(z.string()).optional(),
+  isLatest: z.boolean().optional(),
+});
+
+// ─── View Finder ─────────────────────────────────────────────
+
+const vec3Schema = z.object({ x: z.number(), y: z.number(), z: z.number() });
+
+export const createSavedViewSchema = z.object({
+  revisionId: z.string().optional().nullable(),
+  name: z.string().min(1, "View name is required"),
+  cameraPosition: vec3Schema,
+  cameraRotation: vec3Schema,
+  target: vec3Schema,
+});
+
+export const updateSavedViewSchema = createSavedViewSchema.partial();
+
+// ─── Tasks ───────────────────────────────────────────────────
+
+export const createTaskSchema = z.object({
+  roomId: z.string().optional().nullable(),
+  assignedToId: z.string().optional().nullable(),
+  scope: z.enum(["PROJECT", "ROOM", "PHASE"]),
+  phase: z.string().optional().nullable(),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional().nullable(),
+  status: z.enum(["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "BLOCKED"]).default("NOT_STARTED"),
+  progress: z.number().min(0).max(100).default(0),
+  dueDate: z.string().datetime().optional().nullable(),
+});
+
+export const updateTaskSchema = createTaskSchema.partial();
+
+// ─── Quotations ──────────────────────────────────────────────
+
+const quoteItemSchema = z.object({
+  itemType: z.enum(["ROOM", "PHASE", "SERVICE"]),
+  roomId: z.string().optional().nullable(),
+  phase: z.string().optional().nullable(),
+  title: z.string().min(1),
+  quantity: z.number().positive().default(1),
+  unitPrice: z.number().min(0),
+});
+
+export const createQuotationSchema = z.object({
+  currency: z.string().default("INR"),
+  status: z.enum(["DRAFT", "SENT", "APPROVED", "REJECTED"]).default("DRAFT"),
+  notes: z.string().optional().nullable(),
+  items: z.array(quoteItemSchema).min(1),
+});
+
+export const updateQuotationSchema = z.object({
+  status: z.enum(["DRAFT", "SENT", "APPROVED", "REJECTED"]).optional(),
+  notes: z.string().optional().nullable(),
+  items: z.array(quoteItemSchema).optional(),
+});
+
 // Type exports
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -150,3 +237,11 @@ export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 export type CreateAssetInput = z.infer<typeof createAssetSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CreateApprovalInput = z.infer<typeof createApprovalSchema>;
+export type CreateDriveItemInput = z.infer<typeof createDriveItemSchema>;
+export type UpdateDriveItemInput = z.infer<typeof updateDriveItemSchema>;
+export type CreateSavedViewInput = z.infer<typeof createSavedViewSchema>;
+export type UpdateSavedViewInput = z.infer<typeof updateSavedViewSchema>;
+export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+export type CreateQuotationInput = z.infer<typeof createQuotationSchema>;
+export type UpdateQuotationInput = z.infer<typeof updateQuotationSchema>;

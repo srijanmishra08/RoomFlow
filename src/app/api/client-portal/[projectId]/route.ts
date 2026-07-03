@@ -27,7 +27,19 @@ export async function GET(
               },
             },
           },
+          revisions: {
+            where: { status: "READY" },
+            orderBy: { version: "asc" },
+          },
+          views: {
+            orderBy: { createdAt: "asc" },
+          },
         },
+      },
+      quotations: {
+        include: { items: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
       },
     },
   });
@@ -49,6 +61,29 @@ export async function GET(
       width: room.width,
       height: room.height,
       depth: room.depth,
+      floorPoints: room.floorPoints,
+      modelUrl: room.modelUrl,
+      floorMaterial: room.floorMaterial,
+      wallMaterial: room.wallMaterial,
+      ceilingMaterial: room.ceilingMaterial,
+      revisions: room.revisions.map((rev) => ({
+        id: rev.id,
+        version: rev.version,
+        label: rev.label,
+        type: rev.type,
+        status: rev.status,
+        sceneUrl: rev.sceneUrl,
+        thumbnail: rev.thumbnail,
+        createdAt: rev.createdAt,
+      })),
+      views: room.views.map((view) => ({
+        id: view.id,
+        name: view.name,
+        revisionId: view.revisionId,
+        cameraPosition: view.cameraPosition,
+        cameraRotation: view.cameraRotation,
+        target: view.target,
+      })),
       objects: room.objects.map((obj) => ({
         id: obj.id,
         name: obj.name,
@@ -71,5 +106,16 @@ export async function GET(
         comments: obj.comments,
       })),
     })),
+    quote: project.quotations[0]
+      ? {
+          id: project.quotations[0].id,
+          status: project.quotations[0].status,
+          currency: project.quotations[0].currency,
+          subtotal: project.quotations[0].subtotal,
+          total: project.quotations[0].total,
+          items: project.quotations[0].items,
+          notes: project.quotations[0].notes,
+        }
+      : null,
   });
 }

@@ -1,14 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { put } from "@vercel/blob";
 import { v4 as uuid } from "uuid";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 const ALLOWED_EXTENSIONS = new Set(["glb", "gltf", "obj", "fbx", "png", "jpg", "jpeg", "webp"]);
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
+async function uploadFile(buffer: Buffer, filepath: string, contentType: string): Promise<string> {
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const { put } = await import("@vercel/blob");
+    const blob = await put(filepath, buffer, {
+      access: "public",
+      addRandomSuffix: false,
+      contentType,
+    });
+    return blob.url;
+  } else {
+    const publicDir = path.join(process.cwd(), "public", "uploads");
+    await mkdir(publicDir, { recursive: true });
+    const localPath = path.join(publicDir, filepath.replace(/\//g, "-"));
+    await writeFile(localPath, buffer);
+    return `/uploads/${filepath.replace(/\//g, "-")}`;
+  }
+}
+
 // POST /api/upload
 export async function POST(req: NextRequest) {
+  const limited = await enforceRateLimit(req, "upload", 30, 60_000);
+  if (limited) return limited;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,13 +69,9 @@ export async function POST(req: NextRequest) {
 
   const filename = `${uuid()}.${ext}`;
 
-  // Upload to Vercel Blob storage
-  const blob = await put(`assets/${filename}`, file, {
-    access: "public",
-    addRandomSuffix: false,
-  });
-
-  const fileUrl = blob.url;
+  // Upload file (Vercel Blob in production, local filesystem in dev)
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const fileUrl = await uploadFile(buffer, `assets/${filename}`, file.type);
   const isModel = ["glb", "gltf", "obj", "fbx"].includes(ext);
 
   // Create asset record

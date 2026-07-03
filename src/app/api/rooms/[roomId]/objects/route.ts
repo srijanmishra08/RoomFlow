@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createObjectSchema, updateObjectSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { assertRoomOwner } from "@/lib/authz";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 // GET /api/rooms/[roomId]/objects
 export async function GET(
@@ -15,6 +17,9 @@ export async function GET(
   }
 
   const { roomId } = await params;
+  if (!(await assertRoomOwner(roomId, session.user.id))) {
+    return NextResponse.json({ error: "Not found or forbidden" }, { status: 404 });
+  }
 
   const objects = await prisma.roomObject.findMany({
     where: { roomId },
@@ -37,12 +42,18 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ roomId: string }> }
 ) {
+  const limited = await enforceRateLimit(req, "object-create", 120, 60_000);
+  if (limited) return limited;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { roomId } = await params;
+  if (!(await assertRoomOwner(roomId, session.user.id))) {
+    return NextResponse.json({ error: "Not found or forbidden" }, { status: 404 });
+  }
   const body = await req.json();
   const parsed = createObjectSchema.safeParse(body);
 

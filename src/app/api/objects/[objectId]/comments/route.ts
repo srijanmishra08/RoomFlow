@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createCommentSchema } from "@/lib/validations";
+import { assertObjectOwner } from "@/lib/authz";
 
 // GET /api/objects/[objectId]/comments
 export async function GET(
@@ -14,6 +15,9 @@ export async function GET(
   }
 
   const { objectId } = await params;
+  if (!(await assertObjectOwner(objectId, session.user.id))) {
+    return NextResponse.json({ error: "Not found or forbidden" }, { status: 404 });
+  }
 
   const comments = await prisma.comment.findMany({
     where: { objectId },
@@ -37,6 +41,9 @@ export async function POST(
   }
 
   const { objectId } = await params;
+  if (!(await assertObjectOwner(objectId, session.user.id))) {
+    return NextResponse.json({ error: "Not found or forbidden" }, { status: 404 });
+  }
   const body = await req.json();
   const parsed = createCommentSchema.safeParse(body);
 

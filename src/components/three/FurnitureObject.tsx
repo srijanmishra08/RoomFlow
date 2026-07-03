@@ -1,10 +1,13 @@
 "use client";
 
-import { useRef, useState, useMemo, useEffect, Component, type ReactNode } from "react";
+import { useMemo, useRef, Component, type ReactNode } from "react";
 import { useLoader } from "@react-three/fiber";
+import { TransformControls } from "@react-three/drei";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 import type { RoomObjectData } from "./RoomViewer";
+import { ProceduralFurniture } from "./ProceduralFurniture";
+import { resolveKind } from "@/lib/furniture-catalog";
 
 // Color mapping for status
 function statusToColor(status: string): string {
@@ -19,27 +22,31 @@ function statusToColor(status: string): string {
   }
 }
 
-// Category-based shape/color for placeholder objects
-function categoryStyle(name: string): { color: string; geometry: "box" | "cylinder" | "sphere" } {
-  const lower = name.toLowerCase();
-  if (lower.includes("chair") || lower.includes("sofa") || lower.includes("couch"))
-    return { color: "#6366f1", geometry: "box" };
-  if (lower.includes("table") || lower.includes("desk"))
-    return { color: "#8b5cf6", geometry: "box" };
-  if (lower.includes("lamp") || lower.includes("light"))
-    return { color: "#f59e0b", geometry: "cylinder" };
-  if (lower.includes("plant") || lower.includes("pot"))
-    return { color: "#22c55e", geometry: "sphere" };
-  if (lower.includes("bed") || lower.includes("mattress"))
-    return { color: "#ec4899", geometry: "box" };
-  return { color: "#64748b", geometry: "box" };
+export type GizmoMode = "translate" | "rotate" | "scale";
+
+export interface TransformPatch {
+  positionX: number;
+  positionY: number;
+  positionZ: number;
+  rotationY: number;
+  scaleX: number;
+  scaleY: number;
+  scaleZ: number;
 }
 
 interface FurnitureObjectProps {
   data: RoomObjectData;
   isSelected: boolean;
-  onClick: () => void;
+  /** Part of a multi-selection but not the primary (gizmo-carrying) piece. */
+  isMultiSelected?: boolean;
+  onClick: (additive: boolean) => void;
   isEditable: boolean;
+  /** Active manipulation mode for the selected piece. */
+  gizmoMode?: GizmoMode;
+  /** Called when the piece is dragged to a new floor position (metres). */
+  onMove?: (id: string, x: number, y: number, z: number) => void;
+  /** Called after any transform commit (translate/rotate/scale). */
+  onTransform?: (id: string, patch: TransformPatch) => void;
 }
 
 // Error boundary to catch GLTF load failures inside Canvas
@@ -60,104 +67,13 @@ class ModelErrorBoundary extends Component<
   }
 }
 
-// Placeholder box when no GLTF model URL is provided (or when load fails)
-function PlaceholderBox({
-  data,
-  isSelected,
-  onClick,
-  label,
-}: {
-  data: RoomObjectData;
-  isSelected: boolean;
-  onClick: () => void;
-  label?: string;
-}) {
-  const style = categoryStyle(data.name);
-  const color = data.color || (isSelected ? "#3b82f6" : style.color);
-
-  return (
-    <group
-      position={[data.positionX, data.positionY + 0.5, data.positionZ]}
-      rotation={[data.rotationX, data.rotationY, data.rotationZ]}
-      scale={[data.scaleX, data.scaleY, data.scaleZ]}
-    >
-      <mesh
-        castShadow
-        receiveShadow
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick();
-        }}
-      >
-        {style.geometry === "box" && <boxGeometry args={[1, 1, 1]} />}
-        {style.geometry === "cylinder" && <cylinderGeometry args={[0.3, 0.4, 1.2, 16]} />}
-        {style.geometry === "sphere" && <sphereGeometry args={[0.5, 16, 16]} />}
-        <meshStandardMaterial
-          color={color}
-          transparent
-          opacity={isSelected ? 1 : 0.85}
-          roughness={0.6}
-          metalness={0.1}
-        />
-      </mesh>
-
-      {/* Selection indicator ring */}
-      {isSelected && (
-        <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.7, 0.85, 32]} />
-          <meshBasicMaterial color="#3b82f6" />
-        </mesh>
-      )}
-
-      {/* Status dot */}
-      <mesh position={[0, 0.7, 0]}>
-        <sphereGeometry args={[0.08, 16, 16]} />
-        <meshBasicMaterial color={statusToColor(data.status)} />
-      </mesh>
-    </group>
-  );
-}
-
-// GLTF model loader component
-function GLTFModel({
-  url,
-  data,
-  isSelected,
-  onClick,
-}: {
-  url: string;
-  data: RoomObjectData;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
+// GLTF model meshes (no positioning — the parent group positions it).
+function GLTFMeshes({ url, data }: { url: string; data: RoomObjectData }) {
   const gltf = useLoader(GLTFLoader, url);
   const scene = useMemo(() => gltf.scene.clone(), [gltf]);
-
   return (
-    <group
-      position={[data.positionX, data.positionY, data.positionZ]}
-      rotation={[data.rotationX, data.rotationY, data.rotationZ]}
-      scale={[data.scaleX, data.scaleY, data.scaleZ]}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-    >
+    <group scale={[data.scaleX, data.scaleY, data.scaleZ]}>
       <primitive object={scene} castShadow />
-
-      {/* Selection ring */}
-      {isSelected && (
-        <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.7, 0.85, 32]} />
-          <meshBasicMaterial color="#3b82f6" />
-        </mesh>
-      )}
-
-      {/* Status indicator */}
-      <mesh position={[0, 1.5, 0]}>
-        <sphereGeometry args={[0.08, 16, 16]} />
-        <meshBasicMaterial color={statusToColor(data.status)} />
-      </mesh>
     </group>
   );
 }
@@ -165,13 +81,10 @@ function GLTFModel({
 // Check if a URL looks like it could be a valid GLTF/GLB resource
 function isValidModelUrl(url: string | null | undefined): boolean {
   if (!url || url.trim() === "") return false;
-  // Reject obvious non-model URLs (HTML pages, polyhaven browse pages, etc.)
   if (url.includes("polyhaven.com/a/")) return false;
-  // Must end in .glb/.gltf OR be a proper API URL
   const lower = url.toLowerCase();
   if (lower.endsWith(".glb") || lower.endsWith(".gltf")) return true;
   if (lower.includes(".glb?") || lower.includes(".gltf?")) return true;
-  // Allow blob/data URLs and API endpoints that serve models
   if (url.startsWith("blob:") || url.startsWith("data:")) return true;
   if (url.startsWith("/api/") || url.startsWith("/uploads/")) return true;
   return false;
@@ -180,25 +93,93 @@ function isValidModelUrl(url: string | null | undefined): boolean {
 export function FurnitureObject({
   data,
   isSelected,
+  isMultiSelected = false,
   onClick,
   isEditable,
+  gizmoMode = "translate",
+  onMove,
+  onTransform,
 }: FurnitureObjectProps) {
-  const placeholder = (
-    <PlaceholderBox data={data} isSelected={isSelected} onClick={onClick} />
+  const groupRef = useRef<THREE.Group>(null);
+
+  const hasModel = isValidModelUrl(data.modelUrl);
+  const kind = resolveKind(data.material, data.name);
+  const w = data.scaleX || 1;
+  const h = data.scaleY || 1;
+  const d = data.scaleZ || 1;
+  const color = data.color || "#8a93a5";
+  const ringR = Math.max(w, d) / 2 + 0.18;
+  const dotY = hasModel ? 1.6 : h + 0.18;
+
+  // Visual content sitting on the floor (y from 0 up).
+  const meshes = hasModel ? (
+    <ModelErrorBoundary
+      fallback={<ProceduralFurniture kind={kind} w={w} h={h} d={d} color={color} />}
+    >
+      <GLTFMeshes url={data.modelUrl!} data={data} />
+    </ModelErrorBoundary>
+  ) : (
+    <ProceduralFurniture kind={kind} w={w} h={h} d={d} color={color} />
   );
 
-  if (isValidModelUrl(data.modelUrl)) {
+  const body = (
+    <group
+      ref={groupRef}
+      position={[data.positionX, data.positionY, data.positionZ]}
+      rotation={[data.rotationX, data.rotationY, data.rotationZ]}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(e.nativeEvent.shiftKey);
+      }}
+    >
+      {meshes}
+
+      {(isSelected || isMultiSelected) && (
+        <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[ringR, ringR + 0.12, 48]} />
+          <meshBasicMaterial color={isSelected ? "#3b82f6" : "#93c5fd"} />
+        </mesh>
+      )}
+
+      <mesh position={[0, dotY, 0]}>
+        <sphereGeometry args={[0.07, 16, 16]} />
+        <meshBasicMaterial color={statusToColor(data.status)} />
+      </mesh>
+    </group>
+  );
+
+  // Manipulation gizmo only on the selected, editable piece.
+  if (isSelected && isEditable && (onMove || onTransform)) {
+    const commit = () => {
+      const g = groupRef.current;
+      if (!g) return;
+      // Back-compat: translate still fires onMove.
+      if (gizmoMode === "translate" && onMove) {
+        onMove(data.id, +g.position.x.toFixed(2), +g.position.y.toFixed(2), +g.position.z.toFixed(2));
+      }
+      onTransform?.(data.id, {
+        positionX: +g.position.x.toFixed(2),
+        positionY: +g.position.y.toFixed(2),
+        positionZ: +g.position.z.toFixed(2),
+        rotationY: +g.rotation.y.toFixed(3),
+        scaleX: +(data.scaleX * g.scale.x).toFixed(2),
+        scaleY: +(data.scaleY * g.scale.y).toFixed(2),
+        scaleZ: +(data.scaleZ * g.scale.z).toFixed(2),
+      });
+    };
     return (
-      <ModelErrorBoundary fallback={placeholder}>
-        <GLTFModel
-          url={data.modelUrl!}
-          data={data}
-          isSelected={isSelected}
-          onClick={onClick}
-        />
-      </ModelErrorBoundary>
+      <TransformControls
+        mode={gizmoMode}
+        showY={gizmoMode !== "translate"}
+        translationSnap={gizmoMode === "translate" ? 0.1 : undefined}
+        rotationSnap={gizmoMode === "rotate" ? Math.PI / 24 : undefined}
+        size={0.7}
+        onMouseUp={commit}
+      >
+        {body}
+      </TransformControls>
     );
   }
 
-  return placeholder;
+  return body;
 }

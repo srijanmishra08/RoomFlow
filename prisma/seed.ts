@@ -239,16 +239,6 @@ async function main() {
     },
   });
 
-  // Create subscription (Free tier for demo)
-  await prisma.subscription.upsert({
-    where: { userId: designerUser.id },
-    update: {},
-    create: {
-      userId: designerUser.id,
-      plan: "FREE",
-    },
-  });
-
   // Create activity log entries
   await prisma.activity.createMany({
     data: [

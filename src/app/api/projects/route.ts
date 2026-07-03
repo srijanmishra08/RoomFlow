@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createProjectSchema, updateProjectSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { assertWithinPlan } from "@/lib/plans";
+import { track } from "@/lib/analytics";
 
 // GET /api/projects – list designer's projects
 export async function GET() {
@@ -53,6 +55,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
 
+  const planBlock = await assertWithinPlan(designer.id, "create-project");
+  if (planBlock) {
+    return NextResponse.json({ error: planBlock.error }, { status: planBlock.status });
+  }
+
   const project = await prisma.project.create({
     data: {
       ...parsed.data,
@@ -61,6 +68,7 @@ export async function POST(req: NextRequest) {
   });
 
   await logActivity(project.id, session.user.id, "PROJECT_CREATED", `Created project "${project.title}"`);
+  track(designer.id, "project_created", { projectId: project.id });
 
   return NextResponse.json(project, { status: 201 });
 }

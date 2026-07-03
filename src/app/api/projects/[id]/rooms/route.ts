@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { createRoomSchema } from "@/lib/validations";
 import { logActivity } from "@/lib/activity";
+import { assertWithinPlan } from "@/lib/plans";
 
 // GET /api/projects/[id]/rooms
 export async function GET(
@@ -54,6 +55,11 @@ export async function POST(
 
   if (!project || !designer || project.designerId !== designer.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const planBlock = await assertWithinPlan(designer.id, "create-room", { projectId: id });
+  if (planBlock) {
+    return NextResponse.json({ error: planBlock.error }, { status: planBlock.status });
   }
 
   const { floorPoints, floorMaterial, wallMaterial, ceilingMaterial, ...rest } = parsed.data;

@@ -18,6 +18,7 @@ interface Room {
   width: number;
   height: number;
   depth: number;
+  level?: number;
   objects: RoomObject[];
 }
 
@@ -47,7 +48,9 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showNewRoom, setShowNewRoom] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
-  const [roomDims, setRoomDims] = useState({ width: 5, height: 3, depth: 5 });
+  const [roomDims, setRoomDims] = useState({ width: 5, height: 3, depth: 5, level: 0 });
+  const [activeLevel, setActiveLevel] = useState<number | "all">("all");
+  const [duplicating, setDuplicating] = useState(false);
   const [editingRoom, setEditingRoom] = useState<string | null>(null);
   const [editRoomData, setEditRoomData] = useState({ name: "", width: 5, height: 3, depth: 5 });
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -70,6 +73,23 @@ export default function ProjectDetailPage() {
       })
       .catch(() => {});
   }, [params.id]);
+
+  async function duplicateProject() {
+    setDuplicating(true);
+    try {
+      const res = await fetch(`/api/projects/${params.id}/duplicate`, { method: "POST" });
+      if (res.ok) {
+        const copy = await res.json();
+        toast("Project duplicated", "success");
+        router.push(`/dashboard/projects/${copy.id}`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast(data.error || "Failed to duplicate", "error");
+      }
+    } finally {
+      setDuplicating(false);
+    }
+  }
 
   async function createRoom() {
     if (!newRoomName.trim()) return;
@@ -250,6 +270,19 @@ export default function ProjectDetailPage() {
           >
             📋 Copy Client Link
           </button>
+          <Link
+            href={`/dashboard/projects/${project.id}/quote`}
+            className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] hover:bg-[var(--secondary)] transition"
+          >
+            ₹ Quotation
+          </Link>
+          <button
+            onClick={duplicateProject}
+            disabled={duplicating}
+            className="px-3 py-1.5 rounded-lg text-xs border border-[var(--border)] hover:bg-[var(--secondary)] transition disabled:opacity-50"
+          >
+            {duplicating ? "Duplicating…" : "⧉ Duplicate"}
+          </button>
           <button
             onClick={deleteProject}
             className="px-3 py-1.5 rounded-lg text-xs text-[var(--destructive)] border border-[var(--destructive)] hover:bg-red-50 transition"
@@ -318,7 +351,7 @@ export default function ProjectDetailPage() {
               placeholder="Room name (e.g., Living Room)"
               className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm"
             />
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <div>
                 <label className="text-xs text-[var(--muted-foreground)]">Width (m)</label>
                 <input
@@ -343,6 +376,15 @@ export default function ProjectDetailPage() {
                   type="number"
                   value={roomDims.depth}
                   onChange={(e) => setRoomDims({ ...roomDims, depth: +e.target.value })}
+                  className="w-full px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-[var(--muted-foreground)]">Floor</label>
+                <input
+                  type="number"
+                  value={roomDims.level}
+                  onChange={(e) => setRoomDims({ ...roomDims, level: Math.trunc(+e.target.value) })}
                   className="w-full px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm"
                 />
               </div>
@@ -371,9 +413,33 @@ export default function ProjectDetailPage() {
               No rooms yet. Add your first room to start designing.
             </p>
           </div>
-        ) : (
+        ) : (() => {
+          const levels = Array.from(new Set(project.rooms.map((r) => r.level ?? 0))).sort((a, b) => a - b);
+          const floorLabel = (l: number) => (l === 0 ? "Ground" : l < 0 ? `B${-l}` : `Floor ${l}`);
+          const visible = activeLevel === "all" ? project.rooms : project.rooms.filter((r) => (r.level ?? 0) === activeLevel);
+          return (
+          <>
+          {levels.length > 1 && (
+            <div className="flex gap-1.5 mb-3 flex-wrap">
+              <button
+                onClick={() => setActiveLevel("all")}
+                className={`px-3 py-1 rounded-lg text-xs border ${activeLevel === "all" ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "border-[var(--border)]"}`}
+              >
+                All floors
+              </button>
+              {levels.map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setActiveLevel(l)}
+                  className={`px-3 py-1 rounded-lg text-xs border ${activeLevel === l ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-[var(--primary)]" : "border-[var(--border)]"}`}
+                >
+                  {floorLabel(l)} ({project.rooms.filter((r) => (r.level ?? 0) === l).length})
+                </button>
+              ))}
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
-            {project.rooms.map((room) =>
+            {visible.map((room) =>
               editingRoom === room.id ? (
                 <div
                   key={room.id}
@@ -497,7 +563,9 @@ export default function ProjectDetailPage() {
               )
             )}
           </div>
-        )}
+          </>
+          );
+        })()}
       </div>
 
       {/* Activity Timeline */}

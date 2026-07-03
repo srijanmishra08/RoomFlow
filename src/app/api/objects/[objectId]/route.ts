@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateObjectSchema } from "@/lib/validations";
+import { assertObjectOwner } from "@/lib/authz";
 
 // PATCH /api/objects/[objectId]
 export async function PATCH(
@@ -14,6 +15,9 @@ export async function PATCH(
   }
 
   const { objectId } = await params;
+  if (!(await assertObjectOwner(objectId, session.user.id))) {
+    return NextResponse.json({ error: "Not found or forbidden" }, { status: 404 });
+  }
   const body = await req.json();
   const parsed = updateObjectSchema.safeParse(body);
 
@@ -40,6 +44,9 @@ export async function DELETE(
   }
 
   const { objectId } = await params;
+  if (!(await assertObjectOwner(objectId, session.user.id))) {
+    return NextResponse.json({ error: "Not found or forbidden" }, { status: 404 });
+  }
 
   await prisma.roomObject.delete({ where: { id: objectId } });
 

@@ -40,7 +40,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { floorPoints, floorMaterial, wallMaterial, ceilingMaterial, ...rest } = parsed.data;
+  const { floorPoints, openings, floorMaterial, wallMaterial, ceilingMaterial, ...rest } = parsed.data;
 
   const jsonField = (v: unknown) =>
     v === null ? Prisma.JsonNull : v === undefined ? undefined : v;
@@ -50,6 +50,7 @@ export async function PATCH(
     data: {
       ...rest,
       floorPoints: jsonField(floorPoints),
+      openings: jsonField(openings),
       floorMaterial: jsonField(floorMaterial),
       wallMaterial: jsonField(wallMaterial),
       ceilingMaterial: jsonField(ceilingMaterial),

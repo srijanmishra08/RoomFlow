@@ -5,6 +5,7 @@ import { v4 as uuid } from "uuid";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { optimizeImage, optimizeGLB, generateThumbnail } from "@/lib/media-optimize";
 
 const ALLOWED_EXTENSIONS = new Set(["glb", "gltf", "obj", "fbx", "png", "jpg", "jpeg", "webp"]);
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -67,12 +68,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const filename = `${uuid()}.${ext}`;
+  const isModel = ["glb", "gltf", "obj", "fbx"].includes(ext);
+  const isImage = ["png", "jpg", "jpeg", "webp"].includes(ext);
+  const rawBuffer = Buffer.from(await file.arrayBuffer());
+
+  // Compress before storing: Draco for GLB meshes, WebP re-encode for
+  // raster images. Both fail open — original buffer is used on error.
+  let buffer = rawBuffer;
+  let storedExt = ext;
+  let contentType = file.type;
+  if (ext === "glb") {
+    buffer = await optimizeGLB(rawBuffer);
+  } else if (isImage) {
+    const optimized = await optimizeImage(rawBuffer);
+    buffer = optimized.buffer;
+    storedExt = optimized.ext;
+    contentType = optimized.contentType;
+  }
+
+  const filename = `${uuid()}.${storedExt}`;
 
   // Upload file (Vercel Blob in production, local filesystem in dev)
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const fileUrl = await uploadFile(buffer, `assets/${filename}`, file.type);
-  const isModel = ["glb", "gltf", "obj", "fbx"].includes(ext);
+  const fileUrl = await uploadFile(buffer, `assets/${filename}`, contentType);
+
+  // Small preview for the asset-library grid (images only; models get none).
+  let thumbnailUrl: string | undefined;
+  if (isImage) {
+    const thumb = await generateThumbnail(rawBuffer);
+    if (thumb) {
+      thumbnailUrl = await uploadFile(thumb, `thumbnails/${uuid()}.webp`, "image/webp");
+    } else {
+      thumbnailUrl = fileUrl;
+    }
+  }
 
   // Create asset record
   const asset = await prisma.asset.create({
@@ -80,8 +108,8 @@ export async function POST(req: NextRequest) {
       designerId: designer.id,
       name: name || file.name.replace(`.${ext}`, ""),
       fileUrl,
-      fileType: ext,
-      thumbnail: isModel ? undefined : fileUrl,
+      fileType: storedExt,
+      thumbnail: thumbnailUrl,
       category: category || undefined,
       tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
     },

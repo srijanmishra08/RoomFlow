@@ -20,6 +20,7 @@ import { searchCatalog, autoFurnish, inferRoomKind, PALETTES, colorForKind, type
 import { resolveKind } from "@/lib/furniture-catalog";
 import { PBR_TEXTURES } from "@/lib/pbr-textures";
 import { snapToNeighbours } from "@/lib/editor-tools";
+import { Upload, Sofa, Grid, Camera, ImageIcon, Copy as CopyIcon, Ruler, Magnet, Undo2, Redo2, Move, RotateCw, Scaling } from "@/components/icons";
 
 const RoomViewer = dynamic(
   () => import("@/components/three/RoomViewer").then((mod) => mod.RoomViewer),
@@ -1063,7 +1064,7 @@ export default function RoomBuilderPage() {
             onClick={() => setActivePanel("upload")}
             className="border border-[var(--primary)] text-[var(--primary)] px-3 py-1.5 rounded-lg text-sm hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)] transition"
           >
-            📁 Upload Design
+            <Upload size={15} className="inline -mt-0.5 mr-1.5" />Upload Design
           </button>
           <button
             onClick={() => { setShowCatalog((v) => !v); setShowAddForm(false); }}
@@ -1073,13 +1074,13 @@ export default function RoomBuilderPage() {
                 : "border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]"
             }`}
           >
-            🛋️ Catalog
+            <Sofa size={15} className="inline -mt-0.5 mr-1.5" />Catalog
           </button>
           <button
             onClick={() => setShowFloorPlan(true)}
             className="px-3 py-1.5 rounded-lg text-sm border border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)] transition"
           >
-            📐 Floor Plan
+            <Grid size={15} className="inline -mt-0.5 mr-1.5" />Floor Plan
           </button>
           <div className="relative">
             <button
@@ -1087,7 +1088,7 @@ export default function RoomBuilderPage() {
               disabled={rendering}
               className="px-3 py-1.5 rounded-lg text-sm bg-[var(--primary)] text-[var(--primary-foreground)] disabled:opacity-50"
             >
-              {rendering ? "Rendering…" : "📸 Render ▾"}
+              {rendering ? "Rendering…" : <><Camera size={15} className="inline -mt-0.5 mr-1.5" />Render ▾</>}
             </button>
             {showRenderMenu && !rendering && (
               <div className="fixed inset-0 z-10" onClick={() => setShowRenderMenu(false)} />
@@ -1095,10 +1096,10 @@ export default function RoomBuilderPage() {
             {showRenderMenu && !rendering && (
               <div className="absolute z-20 mt-1 w-44 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg overflow-hidden">
                 {([
-                  { p: "snap", label: "📸 Snapshot (view size)" },
-                  { p: "1080p", label: "🖥️ Full HD (1920×1080)" },
-                  { p: "4k", label: "🎞️ 4K (3840×2160)" },
-                  { p: "360", label: "🌐 360° Panorama" },
+                  { p: "snap", label: "Snapshot (view size)" },
+                  { p: "1080p", label: "Full HD (1920×1080)" },
+                  { p: "4k", label: "4K (3840×2160)" },
+                  { p: "360", label: "360° Panorama" },
                 ] as const).map((o) => (
                   <button
                     key={o.p}
@@ -1119,7 +1120,7 @@ export default function RoomBuilderPage() {
                 : "border-[var(--primary)] text-[var(--primary)] hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]"
             }`}
           >
-            🖼️ Gallery{renders.length ? ` (${renders.length})` : ""}
+            <ImageIcon size={15} className="inline -mt-0.5 mr-1.5" />Gallery{renders.length ? ` (${renders.length})` : ""}
           </button>
           <button
             onClick={() => { setShowAddForm(!showAddForm); setShowCatalog(false); }}
@@ -1130,9 +1131,9 @@ export default function RoomBuilderPage() {
           {selectedId && (
             <div className="flex items-center rounded-lg border border-[var(--border)] overflow-hidden ml-1">
               {([
-                { m: "translate", icon: "✥", label: "Move" },
-                { m: "rotate", icon: "⟳", label: "Rotate" },
-                { m: "scale", icon: "⤢", label: "Scale" },
+                { m: "translate", icon: <Move size={14} />, label: "Move" },
+                { m: "rotate", icon: <RotateCw size={14} />, label: "Rotate" },
+                { m: "scale", icon: <Scaling size={14} />, label: "Scale" },
               ] as const).map((g) => (
                 <button
                   key={g.m}
@@ -1158,7 +1159,7 @@ export default function RoomBuilderPage() {
                 : "border-[var(--border)] hover:bg-[var(--muted)]"
             }`}
           >
-            📏
+            <Ruler size={15} />
           </button>
           <button
             onClick={() => setSnapEnabled((v) => !v)}
@@ -1169,7 +1170,7 @@ export default function RoomBuilderPage() {
                 : "border-[var(--border)] hover:bg-[var(--muted)]"
             }`}
           >
-            🧲
+            <Magnet size={15} />
           </button>
           <button
             onClick={undo}
@@ -1177,7 +1178,7 @@ export default function RoomBuilderPage() {
             title="Undo (⌘Z)"
             className="px-2.5 py-1.5 rounded-lg text-sm border border-[var(--border)] hover:bg-[var(--muted)] disabled:opacity-40 ml-1"
           >
-            ↶ Undo
+            <Undo2 size={14} className="inline -mt-0.5 mr-1" />Undo
           </button>
           <button
             onClick={redo}
@@ -1185,7 +1186,7 @@ export default function RoomBuilderPage() {
             title="Redo (⌘⇧Z)"
             className="px-2.5 py-1.5 rounded-lg text-sm border border-[var(--border)] hover:bg-[var(--muted)] disabled:opacity-40 ml-1"
           >
-            ↷ Redo
+            <Redo2 size={14} className="inline -mt-0.5 mr-1" />Redo
           </button>
           {selectedId && (
             <button
@@ -1193,7 +1194,7 @@ export default function RoomBuilderPage() {
               title="Duplicate (⌘D)"
               className="px-2.5 py-1.5 rounded-lg text-sm border border-[var(--border)] hover:bg-[var(--muted)] ml-1"
             >
-              ⧉ Duplicate
+              <CopyIcon size={14} className="inline -mt-0.5 mr-1" />Duplicate
             </button>
           )}
           <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)] ml-4">
@@ -1234,7 +1235,7 @@ export default function RoomBuilderPage() {
             <span className="text-xs text-[var(--muted-foreground)]">{renders.length} render{renders.length === 1 ? "" : "s"}</span>
           </div>
           {renders.length === 0 ? (
-            <p className="text-xs text-[var(--muted-foreground)]">No renders yet. Click 📸 Render to capture the current view.</p>
+            <p className="text-xs text-[var(--muted-foreground)]">No renders yet. Click Render to capture the current view.</p>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
               {renders.map((r) => (

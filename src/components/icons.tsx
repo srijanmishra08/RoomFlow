@@ -299,3 +299,76 @@ const Icons = {
 };
 
 export default Icons;
+
+export function Grid({ className, size = 24 }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+    </svg>
+  );
+}
+
+export function Magnet({ className, size = 24 }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <path d="M6 15a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1a2 2 0 0 0-2 2v10a1 1 0 0 1-2 0V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2z" />
+      <path d="M6 8h5M13 8h5" />
+    </svg>
+  );
+}
+
+export function Undo2({ className, size = 24 }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10a6 6 0 0 1 6 6v1" />
+    </svg>
+  );
+}
+
+export function Redo2({ className, size = 24 }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <path d="m15 14 5-5-5-5" />
+      <path d="M20 9H10a6 6 0 0 0-6 6v1" />
+    </svg>
+  );
+}
+
+export function Move({ className, size = 24 }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <path d="M12 2v20M2 12h20" />
+      <path d="m9 5 3-3 3 3M9 19l3 3 3-3M5 9 2 12l3 3M19 9l3 3-3 3" />
+    </svg>
+  );
+}
+
+export function RotateCw({ className, size = 24 }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <path d="M21 12a9 9 0 1 1-3-6.7" />
+      <path d="M21 3v6h-6" />
+    </svg>
+  );
+}
+
+export function Scaling({ className, size = 24 }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <path d="M21 3 9 15" />
+      <path d="M21 8V3h-5" />
+      <rect x="3" y="11" width="10" height="10" rx="1.5" />
+    </svg>
+  );
+}
+
+export function Globe({ className, size = 24 }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" />
+    </svg>
+  );
+}

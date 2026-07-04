@@ -215,6 +215,9 @@ export default function RoomBuilderPage() {
   const [rendering, setRendering] = useState(false);
   const captureRef = useRef<CaptureFn | null>(null);
   const [showRenderMenu, setShowRenderMenu] = useState(false);
+  // The room's non-revision modelUrl, captured on load and kept in sync with
+  // Quick Upload / Remove design-file so "Current" and revision-delete can restore it.
+  const originalModelUrlRef = useRef<string | null>(null);
   const [gizmoMode, setGizmoMode] = useState<"translate" | "rotate" | "scale">("translate");
   const historyRef = useRef<{ id: string; before: Partial<RoomObjectData> }[]>([]);
   const redoRef = useRef<{ id: string; before: Partial<RoomObjectData> }[]>([]);
@@ -286,6 +289,7 @@ export default function RoomBuilderPage() {
           wallMaterial: roomData.wallMaterial,
           ceilingMaterial: roomData.ceilingMaterial,
         });
+        originalModelUrlRef.current = roomData.modelUrl ?? null;
         setObjects(roomData.objects || []);
       }
 
@@ -602,6 +606,10 @@ export default function RoomBuilderPage() {
       const dz = next.positionZ - o.positionZ;
       const followers = selectedIds.filter((sid) => sid !== id && objects.some((p) => p.id === sid));
       if ((dx !== 0 || dz !== 0) && gizmoMode === "translate" && followers.length > 0) {
+        followers.forEach((fid) => {
+          const f = objects.find((p) => p.id === fid);
+          if (f) pushHistory(fid, { positionX: f.positionX, positionZ: f.positionZ });
+        });
         setObjects((prev) =>
           prev.map((p) =>
             followers.includes(p.id)
@@ -780,6 +788,7 @@ export default function RoomBuilderPage() {
       const ids = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
       if (ids.length === 0) return;
       const targets = objects.filter((o) => ids.includes(o.id));
+      targets.forEach((t) => pushHistory(t.id, { positionX: t.positionX, positionZ: t.positionZ }));
       setObjects((prev) =>
         prev.map((p) =>
           ids.includes(p.id)
@@ -800,7 +809,7 @@ export default function RoomBuilderPage() {
         )
       );
     },
-    [objects, selectedId, selectedIds]
+    [objects, selectedId, selectedIds, pushHistory]
   );
 
   // Editor keyboard shortcuts: duplicate / copy / paste / delete / nudge / escape.
@@ -881,11 +890,13 @@ export default function RoomBuilderPage() {
 
           // If 3D file, update the room's modelUrl
           if (data.fileType === "3d" && data.fileUrl) {
+            originalModelUrlRef.current = data.fileUrl;
             setRoom((prev) => prev ? { ...prev, modelUrl: data.fileUrl } : prev);
           }
 
           // If image upload generated a sceneUrl, use it
           if (data.sceneUrl) {
+            originalModelUrlRef.current = data.sceneUrl;
             setRoom((prev) => prev ? { ...prev, modelUrl: data.sceneUrl } : prev);
           }
 
@@ -972,7 +983,7 @@ export default function RoomBuilderPage() {
         if (activeRevisionId === revisionId) {
           setActiveRevisionId(null);
           // Restore room's original modelUrl
-          setRoom((prev) => prev ? { ...prev } : prev);
+          setRoom((prev) => (prev ? { ...prev, modelUrl: originalModelUrlRef.current } : prev));
         }
         toast("Revision deleted", "success");
       }
@@ -1078,6 +1089,9 @@ export default function RoomBuilderPage() {
             >
               {rendering ? "Rendering…" : "📸 Render ▾"}
             </button>
+            {showRenderMenu && !rendering && (
+              <div className="fixed inset-0 z-10" onClick={() => setShowRenderMenu(false)} />
+            )}
             {showRenderMenu && !rendering && (
               <div className="absolute z-20 mt-1 w-44 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg overflow-hidden">
                 {([
@@ -1424,6 +1438,7 @@ export default function RoomBuilderPage() {
                 onClick={() => {
                   setActiveRevisionId(null);
                   // Restore original room model
+                  setRoom((prev) => (prev ? { ...prev, modelUrl: originalModelUrlRef.current } : prev));
                 }}
                 className={`px-2.5 py-1 rounded text-xs whitespace-nowrap transition ${
                   !activeRevisionId
@@ -1553,7 +1568,7 @@ export default function RoomBuilderPage() {
               onSelect={(revisionId) => {
                 setActiveRevisionId(revisionId);
                 if (!revisionId) {
-                  setRoom((prev) => prev ? { ...prev } : prev);
+                  setRoom((prev) => (prev ? { ...prev, modelUrl: originalModelUrlRef.current } : prev));
                   return;
                 }
                 const revision = revisions.find((item) => item.id === revisionId);
@@ -1862,6 +1877,7 @@ export default function RoomBuilderPage() {
                     </div>
                     <button
                       onClick={() => {
+                        originalModelUrlRef.current = null;
                         setRoom((prev) => prev ? { ...prev, modelUrl: null } : prev);
                         saveRoom({ modelUrl: null } as Partial<Room>);
                       }}

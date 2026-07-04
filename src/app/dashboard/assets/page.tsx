@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/components/Toast";
+import { Plus, Palette, Sofa, X } from "@/components/icons";
 
 interface Asset {
   id: string;
@@ -144,9 +145,10 @@ export default function AssetsPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-[var(--primary)] text-[var(--primary-foreground)] px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition"
+          className="h-9 inline-flex items-center gap-2 bg-[var(--primary)] text-[var(--primary-foreground)] px-4 rounded-lg text-sm font-medium hover:opacity-90 transition"
         >
-          + Add Asset
+          <Plus size={16} />
+          Add Asset
         </button>
       </div>
 
@@ -290,11 +292,20 @@ export default function AssetsPage() {
 
       {assets.length === 0 ? (
         <div className="text-center py-16 rounded-xl border border-[var(--border)]">
-          <p className="text-4xl mb-4">🎨</p>
+          <div className="w-12 h-12 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mx-auto mb-4">
+            <Palette size={22} />
+          </div>
           <p className="font-semibold">No assets yet</p>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">
             Add GLTF/GLB models to use in your room designs
           </p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-4 inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition"
+          >
+            <Plus size={16} />
+            Add Asset
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 rounded-xl border border-[var(--border)]">
@@ -315,13 +326,13 @@ export default function AssetsPage() {
                     className="h-full w-full object-cover rounded-lg"
                   />
                 ) : (
-                  <span className="text-3xl">📦</span>
+                  <Sofa size={28} className="text-[var(--muted-foreground)]" />
                 )}
                 <button
                   onClick={() => deleteAsset(asset.id)}
-                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[var(--background)] border border-[var(--border)] text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:text-[var(--destructive)]"
+                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[var(--background)] border border-[var(--border)] flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:text-[var(--destructive)]"
                 >
-                  ✕
+                  <X size={14} />
                 </button>
               </div>
               <h3 className="font-medium text-sm">{asset.name}</h3>

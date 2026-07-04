@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/Toast";
+import { Plus, Users } from "@/components/icons";
 
 interface Client {
   id: string;
@@ -110,9 +111,10 @@ export default function ClientsPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-[var(--primary)] text-[var(--primary-foreground)] px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition"
+          className="h-9 inline-flex items-center gap-2 bg-[var(--primary)] text-[var(--primary-foreground)] px-4 rounded-lg text-sm font-medium hover:opacity-90 transition"
         >
-          + Add Client
+          <Plus size={16} />
+          Add Client
         </button>
       </div>
 
@@ -200,11 +202,20 @@ export default function ClientsPage() {
 
       {clients.length === 0 ? (
         <div className="text-center py-16 rounded-xl border border-[var(--border)]">
-          <p className="text-4xl mb-4">👥</p>
+          <div className="w-12 h-12 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mx-auto mb-4">
+            <Users size={22} />
+          </div>
           <p className="font-semibold">No clients yet</p>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">
             Add your first client to start collaborating
           </p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-4 inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition"
+          >
+            <Plus size={16} />
+            Add Client
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 rounded-xl border border-[var(--border)]">

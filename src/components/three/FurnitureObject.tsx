@@ -153,8 +153,9 @@ export function FurnitureObject({
     const commit = () => {
       const g = groupRef.current;
       if (!g) return;
-      // Back-compat: translate still fires onMove.
-      if (gizmoMode === "translate" && onMove) {
+      // Back-compat: only fire onMove when onTransform isn't provided, to
+      // avoid double history entries (onTransform's patch already includes position).
+      if (gizmoMode === "translate" && onMove && !onTransform) {
         onMove(data.id, +g.position.x.toFixed(2), +g.position.y.toFixed(2), +g.position.z.toFixed(2));
       }
       onTransform?.(data.id, {

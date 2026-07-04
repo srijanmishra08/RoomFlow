@@ -4,17 +4,31 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import {
+  LayoutDashboard,
+  FolderOpen,
+  HardDrive,
+  CheckSquare,
+  CalendarClock,
+  Users,
+  Palette,
+  CreditCard,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+} from "@/components/icons";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/dashboard/projects", label: "Projects", icon: "📁" },
-  { href: "/dashboard/drive", label: "Drive", icon: "🗂️" },
-  { href: "/dashboard/tasks", label: "Tasks", icon: "✅" },
-  { href: "/dashboard/timeline", label: "Timeline", icon: "📆" },
-  { href: "/dashboard/clients", label: "Clients", icon: "👥" },
-  { href: "/dashboard/assets", label: "Asset Library", icon: "🎨" },
-  { href: "/dashboard/billing", label: "Billing", icon: "💳" },
-  { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/projects", label: "Projects", icon: FolderOpen },
+  { href: "/dashboard/drive", label: "Drive", icon: HardDrive },
+  { href: "/dashboard/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/dashboard/timeline", label: "Timeline", icon: CalendarClock },
+  { href: "/dashboard/clients", label: "Clients", icon: Users },
+  { href: "/dashboard/assets", label: "Asset Library", icon: Palette },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 interface SidebarProps {
@@ -37,40 +51,44 @@ export function Sidebar({ user }: SidebarProps) {
         </Link>
         <button
           onClick={() => setMobileOpen(false)}
-          className="md:hidden text-[var(--muted-foreground)] text-lg"
+          className="md:hidden text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition"
         >
-          ✕
+          <X size={20} />
         </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-0.5">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||
             (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
+              className={`relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${
                 isActive
-                  ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                  ? "bg-[var(--primary)]/10 text-[var(--primary)]"
                   : "text-[var(--muted-foreground)] hover:bg-[var(--secondary)] hover:text-[var(--foreground)]"
               }`}
             >
-              <span>{item.icon}</span>
+              {isActive && (
+                <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-[var(--primary)]" />
+              )}
+              <Icon size={20} className="shrink-0" />
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      {/* User */}
+      {/* Account */}
       <div className="px-4 py-4 border-t border-[var(--border)]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center text-xs font-bold">
+          <div className="w-8 h-8 rounded-full bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center text-xs font-bold shrink-0">
             {user.name?.[0]?.toUpperCase() || "U"}
           </div>
           <div className="flex-1 min-w-0">
@@ -82,8 +100,9 @@ export function Sidebar({ user }: SidebarProps) {
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
-          className="mt-3 w-full text-left text-xs text-[var(--muted-foreground)] hover:text-[var(--destructive)] transition"
+          className="mt-3 flex items-center gap-2 w-full text-left text-xs text-[var(--muted-foreground)] hover:text-[var(--destructive)] transition"
         >
+          <LogOut size={14} />
           Sign out
         </button>
       </div>
@@ -95,9 +114,9 @@ export function Sidebar({ user }: SidebarProps) {
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed top-4 left-4 z-50 md:hidden w-10 h-10 rounded-lg bg-[var(--background)] border border-[var(--border)] flex items-center justify-center text-lg"
+        className="fixed top-4 left-4 z-50 md:hidden w-10 h-10 rounded-lg bg-[var(--background)] border border-[var(--border)] flex items-center justify-center"
       >
-        ☰
+        <Menu size={20} />
       </button>
 
       {/* Mobile overlay */}

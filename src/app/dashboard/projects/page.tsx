@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { Plus, FolderOpen } from "@/components/icons";
 
 interface Project {
   id: string;
@@ -64,9 +65,10 @@ export default function ProjectsPage() {
         </div>
         <Link
           href="/dashboard/projects/new"
-          className="bg-[var(--primary)] text-[var(--primary-foreground)] px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition"
+          className="h-9 inline-flex items-center gap-2 bg-[var(--primary)] text-[var(--primary-foreground)] px-4 rounded-lg text-sm font-medium hover:opacity-90 transition"
         >
-          + New Project
+          <Plus size={16} />
+          New Project
         </Link>
       </div>
 
@@ -92,11 +94,20 @@ export default function ProjectsPage() {
 
       {projects.length === 0 ? (
         <div className="text-center py-16 rounded-xl border border-[var(--border)]">
-          <p className="text-4xl mb-4">📁</p>
+          <div className="w-12 h-12 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mx-auto mb-4">
+            <FolderOpen size={22} />
+          </div>
           <p className="font-semibold">No projects yet</p>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">
             Create your first project to get started
           </p>
+          <Link
+            href="/dashboard/projects/new"
+            className="mt-4 inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition"
+          >
+            <Plus size={16} />
+            New Project
+          </Link>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 rounded-xl border border-[var(--border)]">

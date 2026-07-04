@@ -1,4 +1,51 @@
 import Link from "next/link";
+import {
+  Building,
+  Users,
+  LayoutDashboard,
+  CheckSquare,
+  Palette,
+  Sparkles,
+} from "@/components/icons";
+
+const features = [
+  {
+    icon: Building,
+    title: "3D Room Builder",
+    description:
+      "Create rooms with dimensions, add furniture, apply materials, and design in full 3D.",
+  },
+  {
+    icon: Users,
+    title: "Client Portal",
+    description:
+      "Share interactive 3D views with clients. They can explore, comment, and approve designs.",
+  },
+  {
+    icon: LayoutDashboard,
+    title: "Progress Tracking",
+    description:
+      "Track every element — planned, in progress, or finalized — with visual status indicators.",
+  },
+  {
+    icon: CheckSquare,
+    title: "Approval Workflow",
+    description:
+      "Clients can approve, reject, or request changes on individual items with notes.",
+  },
+  {
+    icon: Palette,
+    title: "Asset Library",
+    description:
+      "Upload 3D models, organize by category, and reuse across projects instantly.",
+  },
+  {
+    icon: Sparkles,
+    title: "Works Everywhere",
+    description:
+      "Fully responsive dashboard and client portal that works on desktop, tablet, and mobile.",
+  },
+];
 
 export default function HomePage() {
   return (
@@ -28,8 +75,8 @@ export default function HomePage() {
 
       {/* Hero */}
       <main className="flex-1 flex items-center justify-center">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight leading-tight">
+        <div className="max-w-3xl mx-auto px-6 py-16 text-center">
+          <h1 className="text-5xl sm:text-6xl font-bold tracking-tight leading-[1.1]">
             Interactive 3D rooms
             <br />
             <span className="text-[var(--primary)]">for your clients</span>
@@ -58,54 +105,23 @@ export default function HomePage() {
             id="features"
             className="mt-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-left"
           >
-            <div className="p-6 rounded-xl border border-[var(--border)]">
-              <div className="text-2xl mb-3">🏠</div>
-              <h3 className="font-semibold mb-1">3D Room Builder</h3>
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Create rooms with dimensions, add furniture, apply materials,
-                and design in full 3D.
-              </p>
-            </div>
-            <div className="p-6 rounded-xl border border-[var(--border)]">
-              <div className="text-2xl mb-3">👥</div>
-              <h3 className="font-semibold mb-1">Client Portal</h3>
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Share interactive 3D views with clients. They can explore,
-                comment, and approve designs.
-              </p>
-            </div>
-            <div className="p-6 rounded-xl border border-[var(--border)]">
-              <div className="text-2xl mb-3">📊</div>
-              <h3 className="font-semibold mb-1">Progress Tracking</h3>
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Track every element — planned, in progress, or finalized — with
-                visual status indicators.
-              </p>
-            </div>
-            <div className="p-6 rounded-xl border border-[var(--border)]">
-              <div className="text-2xl mb-3">✅</div>
-              <h3 className="font-semibold mb-1">Approval Workflow</h3>
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Clients can approve, reject, or request changes on individual
-                items with notes.
-              </p>
-            </div>
-            <div className="p-6 rounded-xl border border-[var(--border)]">
-              <div className="text-2xl mb-3">🎨</div>
-              <h3 className="font-semibold mb-1">Asset Library</h3>
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Upload 3D models, organize by category, and reuse across
-                projects instantly.
-              </p>
-            </div>
-            <div className="p-6 rounded-xl border border-[var(--border)]">
-              <div className="text-2xl mb-3">📱</div>
-              <h3 className="font-semibold mb-1">Works Everywhere</h3>
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Fully responsive dashboard and client portal that works on
-                desktop, tablet, and mobile.
-              </p>
-            </div>
+            {features.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={feature.title}
+                  className="p-6 rounded-xl border border-[var(--border)]"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mb-4">
+                    <Icon size={20} />
+                  </div>
+                  <h3 className="font-semibold mb-1">{feature.title}</h3>
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    {feature.description}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </main>

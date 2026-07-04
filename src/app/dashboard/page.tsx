@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import { FolderOpen, Users, Palette, CreditCard } from "@/components/icons";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -39,10 +40,10 @@ export default async function DashboardPage() {
   }
 
   const stats = [
-    { label: "Projects", value: String(designer._count.projects), icon: "📁" },
-    { label: "Clients", value: String(designer._count.clients), icon: "👥" },
-    { label: "Assets", value: String(designer._count.assets), icon: "🎨" },
-    { label: "Billed", value: formatINR(totalBilled), icon: "💰" },
+    { label: "Projects", value: String(designer._count.projects), icon: FolderOpen },
+    { label: "Clients", value: String(designer._count.clients), icon: Users },
+    { label: "Assets", value: String(designer._count.assets), icon: Palette },
+    { label: "Billed", value: formatINR(totalBilled), icon: CreditCard },
   ];
 
   return (
@@ -60,22 +61,27 @@ export default async function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
-        {stats.map((stat) => (
-          <div
-            key={stat.label}
-            className="p-5 rounded-xl border border-[var(--border)]"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{stat.icon}</span>
-              <div>
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-sm text-[var(--muted-foreground)]">
-                  {stat.label}
-                </p>
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              key={stat.label}
+              className="p-5 rounded-xl border border-[var(--border)]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    {stat.label}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Billing Overview */}

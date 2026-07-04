@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/components/Toast";
+import { Plus, CreditCard, X } from "@/components/icons";
 
 interface ClientInfo {
   id: string;
@@ -222,9 +223,10 @@ export default function BillingPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-[var(--primary)] text-[var(--primary-foreground)] px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition"
+          className="h-9 inline-flex items-center gap-2 bg-[var(--primary)] text-[var(--primary-foreground)] px-4 rounded-lg text-sm font-medium hover:opacity-90 transition"
         >
-          + New Invoice
+          <Plus size={16} />
+          New Invoice
         </button>
       </div>
 
@@ -332,9 +334,9 @@ export default function BillingPage() {
                     <button
                       type="button"
                       onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
-                      className="col-span-1 text-red-400 hover:text-red-600 text-sm"
+                      className="col-span-1 flex items-center justify-center text-red-400 hover:text-red-600"
                     >
-                      {"\u00d7"}
+                      <X size={14} />
                     </button>
                   </div>
                 ))}
@@ -426,11 +428,20 @@ export default function BillingPage() {
       {/* Invoice List */}
       {data.invoices.length === 0 ? (
         <div className="text-center py-16 rounded-xl border border-[var(--border)]">
-          <p className="text-4xl mb-4">{"\U0001f4cb"}</p>
+          <div className="w-12 h-12 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mx-auto mb-4">
+            <CreditCard size={22} />
+          </div>
           <p className="font-semibold">No invoices yet</p>
           <p className="text-sm text-[var(--muted-foreground)] mt-1">
             Create your first invoice to start billing clients
           </p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-4 inline-flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-medium bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition"
+          >
+            <Plus size={16} />
+            New Invoice
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 rounded-xl border border-[var(--border)]">

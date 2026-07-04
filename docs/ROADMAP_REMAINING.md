@@ -48,14 +48,18 @@ developer runs, not more code.
 
 ## Phase 12 — Quality & ops (mostly done)
 - [x] Playwright E2E scaffold: `playwright.config.ts` + `e2e/core-flows.spec.ts` (register → login → sample project → room editor). **Needs `npx playwright install` (host) before running.**
-- [x] Sentry error monitoring — instrumentation.ts (server) + instrumentation-client.ts (browser) + `withSentryConfig` in next.config.ts for source-map upload. All env-gated inert.
-- [x] Analytics (PostHog server-side track()/flush helper, env-gated no-op, wired to project_created) — posthog-node installed
+- [x] Sentry error monitoring — instrumentation.ts (server) + instrumentation-client.ts (browser) + `withSentryConfig`. **LIVE 2026-07-04**: SENTRY_DSN + NEXT_PUBLIC_SENTRY_DSN set in Vercel (org reshuffle-opc, EU ingest), redeployed.
+- [x] Analytics (PostHog server-side track()/flush, wired to project_created). **LIVE 2026-07-04**: POSTHOG_KEY set in Vercel (project 497362, US cloud).
 - [x] CI pipeline: `.github/workflows/ci.yml` — typecheck, lint, unit tests, Prisma db push + build against a Postgres service container
 - [ ] Accessibility audit (WCAG 2.2)
 - [ ] Load testing + autoscaling validation
+- [ ] Upstash Redis rate limiting live — **blocked: Upstash account not logged in.** Code ready (lib/rate-limit.ts fail-open); set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN when available.
 
 ## Phase 13 — Hardening (this session)
-- [x] CSRF: same-site cookies (existing) + explicit origin/referer check on mutating `/api/*` requests in `src/middleware.ts` (Stripe webhook + NextAuth routes exempted)
+- [x] Deployed to production: Vercel build green, DB schema fully migrated to Neon (all 22 tables), verified end-to-end (register → dashboard → 3D editor). Live at roomflow-ashen.vercel.app.
+- [x] UI professionalization: hand-drawn SVG icon system (src/components/icons.tsx), all emoji removed app-wide incl. 3D editor toolbar.
+- [x] Editor bug sweep: revision restore, single-undo-per-drag, undoable nudge/group-move, dropdown outside-click close, Next 16 proxy migration.
+- [x] CSRF: same-site cookies (existing) + explicit origin/referer check on mutating `/api/*` requests in `src/proxy.ts` (Stripe webhook + NextAuth routes exempted)
 - [x] Team-aware ownership checks: `lib/authz.ts` now resolves accessible designer ids (own studio + ASSISTANT/VIEWER memberships) instead of single-owner-only
 - [x] Upload validation confirmed: server-side extension whitelist + 50MB size cap already enforced in `/api/upload`
 

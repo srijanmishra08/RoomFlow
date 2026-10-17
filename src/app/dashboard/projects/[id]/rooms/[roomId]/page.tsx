@@ -375,8 +375,6 @@ export default function RoomBuilderPage() {
     loadRenders();
   }, [loadRenders]);
 
-  // Capture the 3D canvas → PNG, download, and save to the room gallery.
-  // Presets: snapshot (canvas size), 1080p, 4K, 360° equirect panorama.
   // Download the full-resolution PNG, then store a WebP copy in the room gallery.
   // The WebP step is client-side because serverless request bodies cap at ~4.5 MB,
   // which a 4K PNG easily exceeds.
@@ -438,53 +436,6 @@ export default function RoomBuilderPage() {
         toast("Could not read that panorama", "error");
       } finally {
         setRendering(false);
-      }
-    },
-    [roomId, toast, loadRenders]
-  );
-
-  // Capture the 3D canvas → PNG, download, and save to the room gallery.
-  // Presets: snapshot (canvas size), 1080p, 4K, 360° equirect panorama.
-  // Download the full-resolution PNG, then store a WebP copy in the room gallery.
-  // The WebP step is client-side because serverless request bodies cap at ~4.5 MB,
-  // which a 4K PNG easily exceeds.
-  const saveRenderImage = useCallback(
-    async (dataUrl: string, slug: string, label: string) => {
-      const stamp = Date.now();
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `render-${slug}-${stamp}.png`;
-      a.click();
-
-      const img = new Image();
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error("decode failed"));
-        img.src = dataUrl;
-      });
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext("2d")?.drawImage(img, 0, 0);
-      let blob: Blob | null = null;
-      for (const q of [0.92, 0.85, 0.75, 0.6]) {
-        blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/webp", q));
-        if (blob && blob.size < 4_000_000) break;
-      }
-      if (!blob) throw new Error("encode failed");
-
-      const fd = new FormData();
-      fd.append("file", blob, `render-${slug}-${stamp}.webp`);
-      fd.append("name", `${label} ${new Date().toLocaleString()}`);
-      fd.append("category", "render");
-      fd.append("tags", roomId);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (res.ok) {
-        toast("Render saved to gallery", "success");
-        loadRenders();
-        setShowGallery(true);
-      } else {
-        toast("Render downloaded (gallery save failed)", "error");
       }
     },
     [roomId, toast, loadRenders]

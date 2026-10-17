@@ -19,6 +19,8 @@ import {
 import { searchCatalog, autoFurnish, inferRoomKind, PALETTES, colorForKind, type Palette } from "@/lib/auto-furnish";
 import { resolveKind } from "@/lib/furniture-catalog";
 import { PBR_TEXTURES } from "@/lib/pbr-textures";
+import { encodeWebp, imageSize, isEquirectangular } from "@/lib/image-encode";
+import { PanoramaModal } from "@/components/PanoramaModal";
 import { snapToNeighbours } from "@/lib/editor-tools";
 import { Upload, Sofa, Grid, Camera, ImageIcon, Copy as CopyIcon, Ruler, Magnet, Undo2, Redo2, Move, RotateCw, Scaling } from "@/components/icons";
 
@@ -212,7 +214,11 @@ export default function RoomBuilderPage() {
   const [showCatalog, setShowCatalog] = useState(false);
   const [showFloorPlan, setShowFloorPlan] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
-  const [renders, setRenders] = useState<{ id: string; fileUrl: string; name: string }[]>([]);
+  const [renders, setRenders] = useState<
+    { id: string; fileUrl: string; thumb: string; name: string; isPano: boolean }[]
+  >([]);
+  const [pano, setPano] = useState<{ url: string; title: string } | null>(null);
+  const panoInputRef = useRef<HTMLInputElement>(null);
   const [rendering, setRendering] = useState(false);
   const captureRef = useRef<CaptureFn | null>(null);
   const [showRenderMenu, setShowRenderMenu] = useState(false);
@@ -349,9 +355,16 @@ export default function RoomBuilderPage() {
       if (!res.ok) return;
       const all = await res.json();
       setRenders(
-        (all as { id: string; fileUrl: string; name: string; category?: string; tags?: string[] }[])
+        (all as { id: string; fileUrl: string; thumbnail?: string | null; name: string; category?: string; tags?: string[] }[])
           .filter((a) => a.category === "render" && (a.tags ?? []).includes(roomId))
-          .map((a) => ({ id: a.id, fileUrl: a.fileUrl, name: a.name }))
+          .map((a) => ({
+            id: a.id,
+            fileUrl: a.fileUrl,
+            thumb: a.thumbnail || a.fileUrl,
+            name: a.name,
+            // Tagged on import/capture; the name check covers captures made before tagging.
+            isPano: (a.tags ?? []).includes("panorama") || /360/.test(a.name),
+          }))
       );
     } catch {
       /* ignore */
@@ -361,6 +374,74 @@ export default function RoomBuilderPage() {
   useEffect(() => {
     loadRenders();
   }, [loadRenders]);
+
+  // Capture the 3D canvas → PNG, download, and save to the room gallery.
+  // Presets: snapshot (canvas size), 1080p, 4K, 360° equirect panorama.
+  // Download the full-resolution PNG, then store a WebP copy in the room gallery.
+  // The WebP step is client-side because serverless request bodies cap at ~4.5 MB,
+  // which a 4K PNG easily exceeds.
+  const saveRenderImage = useCallback(
+    async (dataUrl: string, slug: string, label: string, extraTags: string[] = []) => {
+      const stamp = Date.now();
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `render-${slug}-${stamp}.png`;
+      a.click();
+
+      const { blob, ext } = await encodeWebp(dataUrl);
+      const fd = new FormData();
+      fd.append("file", blob, `render-${slug}-${stamp}.${ext}`);
+      fd.append("name", `${label} ${new Date().toLocaleString()}`);
+      fd.append("category", "render");
+      fd.append("tags", [roomId, ...extraTags].join(","));
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (res.ok) {
+        toast("Render saved to gallery", "success");
+        loadRenders();
+        setShowGallery(true);
+      } else {
+        toast("Render downloaded (gallery save failed)", "error");
+      }
+    },
+    [roomId, toast, loadRenders]
+  );
+
+  // Import a 360° equirectangular image (e.g. a V-Ray / Enscape panorama export).
+  const importPanorama = useCallback(
+    async (file: File) => {
+      setRendering(true);
+      setShowRenderMenu(false);
+      try {
+        const { width, height } = await imageSize(file);
+        if (!isEquirectangular(width, height)) {
+          toast(`A 360° panorama must be 2:1 (e.g. 8192×4096). This image is ${width}×${height}.`, "error");
+          return;
+        }
+        // 8K wide is plenty for a browser viewer and keeps the file well under the upload cap.
+        const { blob, ext } = await encodeWebp(file, { maxWidth: 8192 });
+        const fd = new FormData();
+        fd.append("file", blob, `panorama-${Date.now()}.${ext}`);
+        fd.append("name", `360° ${file.name.replace(/\.[^.]+$/, "")}`);
+        fd.append("category", "render");
+        fd.append("tags", [roomId, "panorama"].join(","));
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!res.ok) {
+          toast("Panorama upload failed", "error");
+          return;
+        }
+        const asset = (await res.json()) as { fileUrl: string; name: string };
+        toast("Panorama added — clients can open it from the portal", "success");
+        loadRenders();
+        setShowGallery(true);
+        setPano({ url: asset.fileUrl, title: asset.name });
+      } catch {
+        toast("Could not read that panorama", "error");
+      } finally {
+        setRendering(false);
+      }
+    },
+    [roomId, toast, loadRenders]
+  );
 
   // Capture the 3D canvas → PNG, download, and save to the room gallery.
   // Presets: snapshot (canvas size), 1080p, 4K, 360° equirect panorama.
@@ -427,7 +508,7 @@ export default function RoomBuilderPage() {
       const label = preset === "snap" ? "Render" : preset === "360" ? "360° Pano" : `Render ${preset}`;
       // Yield a frame so the "Rendering…" state paints before the heavy capture.
       await new Promise((r) => setTimeout(r, 30));
-      await saveRenderImage(cap(opts), preset, label);
+      await saveRenderImage(cap(opts), preset, label, preset === "360" ? ["panorama"] : []);
     } catch {
       toast("Render failed", "error");
     } finally {
@@ -1174,6 +1255,12 @@ export default function RoomBuilderPage() {
                     {o.label}
                   </button>
                 ))}
+                <button
+                  onClick={() => panoInputRef.current?.click()}
+                  className="block w-full text-left px-3 py-2 text-xs hover:bg-[var(--muted)] border-t border-[var(--border)]"
+                >
+                  Import 360° panorama…
+                </button>
                 <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)] border-t border-[var(--border)]">
                   Photoreal (path traced)
                 </p>
@@ -1292,6 +1379,20 @@ export default function RoomBuilderPage() {
         </div>
       </div>
 
+      {/* 360° panorama import + viewer */}
+      <input
+        ref={panoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) importPanorama(f);
+          e.target.value = "";
+        }}
+      />
+      {pano && <PanoramaModal url={pano.url} title={pano.title} onClose={() => setPano(null)} />}
+
       {/* 2D Floor Plan Editor */}
       {showFloorPlan && (
         <FloorPlanEditor
@@ -1316,20 +1417,34 @@ export default function RoomBuilderPage() {
       {showGallery && (
         <div className="p-4 rounded-xl border border-[var(--border)] mb-3 bg-[var(--card)]">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold">🖼️ Render Gallery</h3>
+            <h3 className="text-sm font-semibold flex items-center gap-1.5"><ImageIcon size={15} />Render Gallery</h3>
             <span className="text-xs text-[var(--muted-foreground)]">{renders.length} render{renders.length === 1 ? "" : "s"}</span>
           </div>
           {renders.length === 0 ? (
             <p className="text-xs text-[var(--muted-foreground)]">No renders yet. Click Render to capture the current view.</p>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-              {renders.map((r) => (
-                <a key={r.id} href={r.fileUrl} download target="_blank" rel="noopener noreferrer" className="group block rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--primary)] transition">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={r.fileUrl} alt={r.name} className="w-full aspect-video object-cover" />
-                  <p className="text-[10px] truncate px-1.5 py-1 text-[var(--muted-foreground)] group-hover:text-[var(--foreground)]">{r.name}</p>
-                </a>
-              ))}
+              {renders.map((r) =>
+                r.isPano ? (
+                  <button
+                    key={r.id}
+                    onClick={() => setPano({ url: r.fileUrl, title: r.name })}
+                    className="group relative block rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--primary)] transition text-left"
+                    title="Open 360° view"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={r.thumb} alt={r.name} className="w-full aspect-video object-cover" />
+                    <span className="absolute left-1.5 top-1.5 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-medium text-white">360°</span>
+                    <p className="text-[10px] truncate px-1.5 py-1 text-[var(--muted-foreground)] group-hover:text-[var(--foreground)]">{r.name}</p>
+                  </button>
+                ) : (
+                  <a key={r.id} href={r.fileUrl} download target="_blank" rel="noopener noreferrer" className="group block rounded-lg overflow-hidden border border-[var(--border)] hover:border-[var(--primary)] transition">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={r.thumb} alt={r.name} className="w-full aspect-video object-cover" />
+                    <p className="text-[10px] truncate px-1.5 py-1 text-[var(--muted-foreground)] group-hover:text-[var(--foreground)]">{r.name}</p>
+                  </a>
+                )
+              )}
             </div>
           )}
         </div>

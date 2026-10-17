@@ -74,6 +74,17 @@ developer runs, not more code.
 - [ ] Persist the plan underlay with the room (currently session-only).
 - [ ] Photo → 3D (single-image depth/scene reconstruction) — needs a hosted model.
 
+## Phase 15 — 360° panoramas & render → 3D (this session)
+**Correction:** earlier docs implied "render → 3D" was built. It is not: `processInteriorRender` (`src/lib/processing.ts`) only places the image on a curved backdrop — a picture in a 3D frame, not reconstructed geometry. Floor-plan → room *is* real (Phase 14).
+- [x] 360° panorama viewer (`PanoramaViewer` / `PanoramaModal`): equirectangular image on an inside-out sphere, drag / pinch / wheel, auto-rotate until touched, full screen. Exact to the source image; no ML, no server cost.
+- [x] Import a 360° panorama from the Render menu (2:1 check, browser-side WebP ≤ 8192 px so it fits serverless body limits); the room's own 360° captures are tagged and open in the same viewer.
+- [x] Client portal: a room's panoramas appear as "360° views" thumbnails that open in the viewer. Only panoramas are client-facing; flat renders stay private until a per-render share toggle exists.
+- [x] Fix: the portal now receives and renders room `openings` (clients previously saw rooms without doors/windows).
+- [ ] Panorama → room shell: layout estimation (HorizonNet / LGT-Net class) → walls + ceiling height → existing `floorPoints` / `height`, panorama projected as texture. Needs a hosted model (API key + per-image cost). Open atria / curved ceilings violate the box-room assumption.
+- [ ] Depth parallax: panoramic monocular depth → displaced sphere mesh for ~0.5 m of head movement. Relative depth only; spike browser-side (WebGPU) vs hosted.
+- [ ] Editable objects from a single image: not reliable (hidden sides unknown). Realistic version = detect furniture + floor positions, then place catalog items.
+- [ ] Per-render "share with client" toggle (today only panoramas are shared).
+
 ## Priority order (remaining)
 1. `prisma db push` + `next build` on host, run E2E, deploy — see `docs/DEPLOYMENT.md`.
 2. Phase 10 catalog scale (real GLB models, supplier import, embeddings) — biggest remaining Foyr content gap.

@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ObjectInspector } from "@/components/three/ObjectInspector";
 import type { RoomObjectData } from "@/components/three/RoomViewer";
-import type { SurfaceMaterial, FloorPoint } from "@/components/three/RoomBox";
+import type { SurfaceMaterial, FloorPoint, WallOpening } from "@/components/three/RoomBox";
+import { PanoramaModal } from "@/components/PanoramaModal";
 
 const RoomViewer = dynamic(
   () => import("@/components/three/RoomViewer").then((mod) => mod.RoomViewer),
@@ -46,6 +47,8 @@ interface PortalRoom {
   height: number;
   depth: number;
   floorPoints?: FloorPoint[] | null;
+  openings?: WallOpening[] | null;
+  panoramas?: { id: string; name: string; fileUrl: string; thumbnail?: string | null }[];
   modelUrl?: string | null;
   floorMaterial?: SurfaceMaterial | null;
   wallMaterial?: SurfaceMaterial | null;
@@ -96,6 +99,7 @@ export default function ClientPortalPage() {
   const [error, setError] = useState("");
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pano, setPano] = useState<{ url: string; title: string } | null>(null);
   const [commentText, setCommentText] = useState("");
   const [guestName, setGuestName] = useState("");
   const [approvals, setApprovals] = useState<Record<string, Approval>>({});
@@ -266,6 +270,7 @@ export default function ClientPortalPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {pano && <PanoramaModal url={pano.url} title={pano.title} onClose={() => setPano(null)} />}
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[var(--background)] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -415,7 +420,23 @@ export default function ClientPortalPage() {
                   )}
                 </div>
               ) : (
-                <div className="flex-1">
+                <div className="flex-1 relative">
+                  {(activeRoom.panoramas?.length ?? 0) > 0 && (
+                    <div className="absolute left-3 bottom-3 z-10 flex items-center gap-2 rounded-lg bg-black/55 p-1.5 backdrop-blur">
+                      <span className="px-1 text-[10px] font-medium uppercase tracking-wide text-white/80">360° views</span>
+                      {activeRoom.panoramas!.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setPano({ url: p.fileUrl, title: p.name })}
+                          title={p.name}
+                          className="overflow-hidden rounded-md border border-white/30 hover:border-white"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.thumbnail || p.fileUrl} alt={p.name} className="h-10 w-16 object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <RoomViewer
                     width={activeRoom.width}
                     height={activeRoom.height}
@@ -425,6 +446,7 @@ export default function ClientPortalPage() {
                     onSelect={setSelectedId}
                     isEditable={false}
                     floorPoints={(!activeRevision || !activeRevision.sceneUrl) ? activeRoom.floorPoints : undefined}
+                    openings={(!activeRevision || !activeRevision.sceneUrl) ? activeRoom.openings : undefined}
                     roomModelUrl={activeRevision?.sceneUrl ?? activeRoom.modelUrl}
                     floorMaterial={activeRoom.floorMaterial}
                     wallMaterial={activeRoom.wallMaterial}

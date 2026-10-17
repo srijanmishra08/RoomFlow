@@ -29,7 +29,7 @@ Foyr (full client-portal / studio-ops layer Foyr lacks):
   Asset / Quotation / Invoice / Task / DriveItem / SavedView / Approval / Activity.
 - **3D room editor:** polygon & preset floor shapes, floor/wall/ceiling materials,
   object inspector (move/rotate/scale/status/cost), saved camera views, revisions
-  (3D upload, floor-plan→3D, render→3D pipelines), GLB import.
+  (3D upload and floor-plan→room tracing; render images are only shown on a backdrop, not reconstructed), GLB import.
 - **Studio ops Foyr doesn't have:** client portal with approvals & comments,
   quotations, invoices/billing, task board, project drive, activity timeline,
   notifications, email.

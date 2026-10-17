@@ -48,6 +48,23 @@ export async function GET(
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
+  // 360° panoramas are client-facing by design: any asset tagged "panorama" and
+  // attached to one of this project's rooms is shown in the portal. Flat renders
+  // stay private to the designer.
+  const roomIds = project.rooms.map((r) => r.id);
+  const panoramas = roomIds.length
+    ? await prisma.asset.findMany({
+        where: {
+          designerId: project.designerId,
+          category: "render",
+          AND: [{ tags: { has: "panorama" } }, { tags: { hasSome: roomIds } }],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 60,
+        select: { id: true, name: true, fileUrl: true, thumbnail: true, tags: true },
+      })
+    : [];
+
   // Strip sensitive data – only return what the client needs
   return NextResponse.json({
     id: project.id,
@@ -62,6 +79,10 @@ export async function GET(
       height: room.height,
       depth: room.depth,
       floorPoints: room.floorPoints,
+      openings: room.openings,
+      panoramas: panoramas
+        .filter((a) => a.tags.includes(room.id))
+        .map((a) => ({ id: a.id, name: a.name, fileUrl: a.fileUrl, thumbnail: a.thumbnail })),
       modelUrl: room.modelUrl,
       floorMaterial: room.floorMaterial,
       wallMaterial: room.wallMaterial,

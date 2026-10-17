@@ -27,7 +27,8 @@ invoices, tasks, team roles, and billing — all in the browser.
   directly on the 2D floor plan
 - **Rendering** — snapshot / 1080p / 4K stills, 360° equirectangular panorama
   capture, saved render gallery
-- **Revisions** — 3D file upload, floor-plan-image → 3D, render-image → 3D
+- **Revisions** — 3D file upload and floor-plan-image → room tracing; render images are shown on a backdrop (not reconstructed in 3D)
+- **360° panoramas** — import equirectangular images and view them immersively; shared with clients in the portal
 - **Studio ops** — client portal (approvals, comments, quotes), invoices,
   task board, project drive, activity timeline, saved camera views
 - **Team & billing** — Assistant/Viewer roles per studio, FREE/PRO/STUDIO plan

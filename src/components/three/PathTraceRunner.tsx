@@ -125,7 +125,7 @@ export function PathTraceRunner({
         // path tracer ignores. Give it a physical fixture: a ceiling panel.
         const panel = new THREE.RectAreaLight(
           0xfff0dc,
-          14,
+          9,
           Math.min(Math.max(roomWidth * 0.4, 1), 2.6),
           Math.min(Math.max(roomDepth * 0.4, 1), 2.6)
         );
@@ -135,6 +135,14 @@ export function PathTraceRunner({
         restores.push(() => {
           scene.remove(panel);
         });
+
+        // Rays that leave through a window should hit daylight, not the void.
+        if (!scene.background) {
+          scene.background = new THREE.Color(0xe9edf2);
+          restores.push(() => {
+            scene.background = null;
+          });
+        }
 
         const tracer = new WebGLPathTracer(gl);
         tracer.bounces = 5;

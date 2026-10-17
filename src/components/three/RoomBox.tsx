@@ -100,7 +100,7 @@ function Wall({
   );
   return (
     <group position={position} rotation={rotation}>
-      <mesh geometry={geo} receiveShadow>
+      <mesh geometry={geo} receiveShadow userData={{ ptRole: "wall" }}>
         <meshStandardMaterial
           color={appearance.color}
           map={map}
@@ -235,7 +235,9 @@ function PolygonWalls({
       const dx = b.x - a.x;
       const dz = b.z - a.z;
       const length = Math.sqrt(dx * dx + dz * dz);
-      const angle = Math.atan2(dx, dz);
+      // Rotation about Y maps local +X to (cos θ, 0, -sin θ); that must equal the
+      // edge direction so wall length and opening offsets follow the edge.
+      const angle = Math.atan2(-dz, dx);
       out.push({
         position: [(a.x + b.x) / 2, 0, (a.z + b.z) / 2],
         rotation: [0, angle, 0],
@@ -264,7 +266,15 @@ function PolygonWalls({
 }
 
 // Build floor shape from polygon points
-function PolygonFloor({ points, appearance }: { points: FloorPoint[]; appearance: SurfaceAppearance }) {
+function PolygonFloor({
+  points,
+  appearance,
+  ptRole,
+}: {
+  points: FloorPoint[];
+  appearance: SurfaceAppearance;
+  ptRole?: "ceiling";
+}) {
   const shape = useMemo(() => {
     const s = new THREE.Shape();
     s.moveTo(points[0].x, points[0].z);
@@ -286,7 +296,7 @@ function PolygonFloor({ points, appearance }: { points: FloorPoint[]; appearance
   }, [appearance]);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow userData={ptRole ? { ptRole } : undefined}>
       <shapeGeometry args={[shape]} />
       <meshStandardMaterial
         color={appearance.color}
@@ -348,7 +358,7 @@ function CuboidRoom({
       </mesh>
 
       {/* Ceiling */}
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, height, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, height, 0]} userData={{ ptRole: "ceiling" }}>
         <planeGeometry args={[width, depth]} />
         <meshStandardMaterial color={ceilingApp.color} side={THREE.DoubleSide} transparent opacity={0.2} roughness={ceilingApp.roughness} />
       </mesh>
@@ -417,7 +427,7 @@ export function RoomBox({
 
         {/* Ceiling from same polygon */}
         <group position={[0, height, 0]} rotation={[Math.PI, 0, 0]}>
-          <PolygonFloor points={floorPoints} appearance={ceilingApp} />
+          <PolygonFloor points={floorPoints} appearance={ceilingApp} ptRole="ceiling" />
         </group>
       </group>
     );

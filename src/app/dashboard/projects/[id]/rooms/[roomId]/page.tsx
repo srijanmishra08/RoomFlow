@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ObjectInspector } from "@/components/three/ObjectInspector";
 import { RevisionManager } from "@/components/RevisionManager";
-import type { RoomObjectData, CaptureFn } from "@/components/three/RoomViewer";
+import type { RoomObjectData, CaptureFn, PathTraceJob } from "@/components/three/RoomViewer";
 import type { SurfaceMaterial, FloorPoint, WallOpening } from "@/components/three/RoomBox";
 import { FloorPlanEditor } from "@/components/three/FloorPlanEditor";
 import Link from "next/link";
@@ -216,6 +216,9 @@ export default function RoomBuilderPage() {
   const [rendering, setRendering] = useState(false);
   const captureRef = useRef<CaptureFn | null>(null);
   const [showRenderMenu, setShowRenderMenu] = useState(false);
+  const [ptJob, setPtJob] = useState<PathTraceJob | null>(null);
+  const [ptSamples, setPtSamples] = useState(0);
+  const ptLabelRef = useRef({ slug: "photoreal", label: "Photoreal" });
   // The room's non-revision modelUrl, captured on load and kept in sync with
   // Quick Upload / Remove design-file so "Current" and revision-delete can restore it.
   const originalModelUrlRef = useRef<string | null>(null);
@@ -361,6 +364,53 @@ export default function RoomBuilderPage() {
 
   // Capture the 3D canvas → PNG, download, and save to the room gallery.
   // Presets: snapshot (canvas size), 1080p, 4K, 360° equirect panorama.
+  // Download the full-resolution PNG, then store a WebP copy in the room gallery.
+  // The WebP step is client-side because serverless request bodies cap at ~4.5 MB,
+  // which a 4K PNG easily exceeds.
+  const saveRenderImage = useCallback(
+    async (dataUrl: string, slug: string, label: string) => {
+      const stamp = Date.now();
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `render-${slug}-${stamp}.png`;
+      a.click();
+
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("decode failed"));
+        img.src = dataUrl;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext("2d")?.drawImage(img, 0, 0);
+      let blob: Blob | null = null;
+      for (const q of [0.92, 0.85, 0.75, 0.6]) {
+        blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/webp", q));
+        if (blob && blob.size < 4_000_000) break;
+      }
+      if (!blob) throw new Error("encode failed");
+
+      const fd = new FormData();
+      fd.append("file", blob, `render-${slug}-${stamp}.webp`);
+      fd.append("name", `${label} ${new Date().toLocaleString()}`);
+      fd.append("category", "render");
+      fd.append("tags", roomId);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (res.ok) {
+        toast("Render saved to gallery", "success");
+        loadRenders();
+        setShowGallery(true);
+      } else {
+        toast("Render downloaded (gallery save failed)", "error");
+      }
+    },
+    [roomId, toast, loadRenders]
+  );
+
+  // Capture the 3D canvas → PNG, download, and save to the room gallery.
+  // Presets: snapshot (canvas size), 1080p, 4K, 360° equirect panorama.
   const captureRender = useCallback(async (preset: "snap" | "1080p" | "4k" | "360" = "snap") => {
     const cap = captureRef.current;
     if (!cap) {
@@ -377,33 +427,47 @@ export default function RoomBuilderPage() {
       const label = preset === "snap" ? "Render" : preset === "360" ? "360° Pano" : `Render ${preset}`;
       // Yield a frame so the "Rendering…" state paints before the heavy capture.
       await new Promise((r) => setTimeout(r, 30));
-      const dataUrl = cap(opts);
-      // Instant download.
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `render-${preset}-${Date.now()}.png`;
-      a.click();
-      // Persist to gallery via the upload route.
-      const blob = await (await fetch(dataUrl)).blob();
-      const fd = new FormData();
-      fd.append("file", blob, `render-${preset}-${Date.now()}.png`);
-      fd.append("name", `${label} ${new Date().toLocaleString()}`);
-      fd.append("category", "render");
-      fd.append("tags", roomId);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (res.ok) {
-        toast("Render saved to gallery", "success");
-        loadRenders();
-        setShowGallery(true);
-      } else {
-        toast("Render downloaded (gallery save failed)", "error");
-      }
+      await saveRenderImage(cap(opts), preset, label);
     } catch {
       toast("Render failed", "error");
     } finally {
       setRendering(false);
     }
-  }, [roomId, toast, loadRenders]);
+  }, [toast, saveRenderImage]);
+
+  // Photorealistic path-traced render, computed progressively on the user's GPU.
+  const startPhotoreal = useCallback(
+    (quality: "draft" | "standard" | "high") => {
+      const cfg = {
+        draft: { samples: 48, renderScale: 0.75, label: "Photoreal draft" },
+        standard: { samples: 160, renderScale: 1, label: "Photoreal" },
+        high: { samples: 480, renderScale: 1, label: "Photoreal HQ" },
+      }[quality];
+      // Gizmos, selection rings and measure overlays must not appear in the image.
+      selectObject(null);
+      setMeasureMode(false);
+      setShowRenderMenu(false);
+      ptLabelRef.current = { slug: `photoreal-${quality}`, label: cfg.label };
+      setPtSamples(0);
+      setPtJob({ id: Date.now(), samples: cfg.samples, renderScale: cfg.renderScale });
+    },
+    [selectObject]
+  );
+
+  const finishPhotoreal = useCallback(
+    async (dataUrl: string) => {
+      setPtJob(null);
+      setRendering(true);
+      try {
+        await saveRenderImage(dataUrl, ptLabelRef.current.slug, ptLabelRef.current.label);
+      } catch {
+        toast("Could not save the photoreal render", "error");
+      } finally {
+        setRendering(false);
+      }
+    },
+    [saveRenderImage, toast]
+  );
 
   const addObject = useCallback(
     async (formData: FormData) => {
@@ -1094,7 +1158,8 @@ export default function RoomBuilderPage() {
               <div className="fixed inset-0 z-10" onClick={() => setShowRenderMenu(false)} />
             )}
             {showRenderMenu && !rendering && (
-              <div className="absolute z-20 mt-1 w-44 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg overflow-hidden">
+              <div className="absolute z-20 mt-1 w-56 rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-lg overflow-hidden">
+                <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">Quick capture</p>
                 {([
                   { p: "snap", label: "Snapshot (view size)" },
                   { p: "1080p", label: "Full HD (1920×1080)" },
@@ -1104,6 +1169,22 @@ export default function RoomBuilderPage() {
                   <button
                     key={o.p}
                     onClick={() => captureRender(o.p)}
+                    className="block w-full text-left px-3 py-2 text-xs hover:bg-[var(--muted)]"
+                  >
+                    {o.label}
+                  </button>
+                ))}
+                <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)] border-t border-[var(--border)]">
+                  Photoreal (path traced)
+                </p>
+                {([
+                  { q: "draft", label: "Draft · ~48 samples" },
+                  { q: "standard", label: "Standard · 160 samples" },
+                  { q: "high", label: "High quality · 480 samples" },
+                ] as const).map((o) => (
+                  <button
+                    key={o.q}
+                    onClick={() => startPhotoreal(o.q)}
                     className="block w-full text-left px-3 py-2 text-xs hover:bg-[var(--muted)]"
                   >
                     {o.label}
@@ -1223,6 +1304,10 @@ export default function RoomBuilderPage() {
           }}
           openings={room.openings}
           onOpeningsChange={commitOpenings}
+          onRoomBounds={(w, d) => {
+            setRoom((prev) => (prev ? { ...prev, width: w, depth: d } : prev));
+            saveRoom({ width: w, depth: d } as Partial<Room>);
+          }}
           onClose={() => setShowFloorPlan(false)}
         />
       )}
@@ -1531,7 +1616,31 @@ export default function RoomBuilderPage() {
               )}
             </div>
           ) : (
-            <div className="flex-1">
+            <div className="flex-1 relative">
+              {ptJob && (
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-4 z-10 w-[min(420px,90%)] rounded-xl border border-[var(--border)] bg-[var(--card)]/95 backdrop-blur px-4 py-3 shadow-lg">
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="font-medium">
+                      {ptSamples === 0 ? "Preparing scene…" : `Rendering · ${Math.min(ptSamples, ptJob.samples)} / ${ptJob.samples} samples`}
+                    </span>
+                    <button
+                      onClick={() => setPtJob(null)}
+                      className="px-2 py-0.5 rounded border border-[var(--border)] hover:bg-[var(--muted)]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-[var(--muted)] overflow-hidden">
+                    <div
+                      className="h-full bg-[var(--primary)] transition-[width] duration-200"
+                      style={{ width: `${Math.min(100, (ptSamples / ptJob.samples) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[10px] text-[var(--muted-foreground)]">
+                    Light is simulated on your GPU. Keep this tab open; the image saves to the gallery when done.
+                  </p>
+                </div>
+              )}
               <RoomViewer
                 width={room.width}
                 height={room.height}
@@ -1554,6 +1663,19 @@ export default function RoomBuilderPage() {
                 ceilingMaterial={room.ceilingMaterial}
                 onCameraSnapshot={setCameraSnapshot}
                 focusView={focusView}
+                pathTrace={
+                  ptJob
+                    ? {
+                        job: ptJob,
+                        onProgress: setPtSamples,
+                        onDone: finishPhotoreal,
+                        onError: (msg: string) => {
+                          setPtJob(null);
+                          toast(msg, "error");
+                        },
+                      }
+                    : null
+                }
               />
             </div>
           )}
@@ -1893,7 +2015,7 @@ export default function RoomBuilderPage() {
                   <p className="font-medium mb-1">Hybrid 3D Pipeline:</p>
                   <ol className="list-decimal list-inside space-y-0.5">
                     <li><strong>3D file</strong> (.glb/.gltf) → renders interactively immediately</li>
-                    <li><strong>Floor plan image</strong> → generates 3D room with image as floor texture</li>
+                    <li><strong>Floor plan image</strong> → open <em>Floor Plan</em> → <em>Import plan image</em> to detect walls and build the 3D room</li>
                     <li><strong>Interior render</strong> → generates 3D scene with image on curved backdrop</li>
                     <li><strong>Any image</strong> → generates 3D gallery displaying the image</li>
                   </ol>

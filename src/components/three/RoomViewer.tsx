@@ -2,11 +2,19 @@
 
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Grid, Environment, Line, Html } from "@react-three/drei";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { RoomBox, type SurfaceMaterial, type FloorPoint, type WallOpening } from "./RoomBox";
 import { FurnitureObject, type GizmoMode, type TransformPatch } from "./FurnitureObject";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
+import type { PathTraceJob } from "./PathTraceRunner";
+
+export type { PathTraceJob };
+
+// The path tracer (BVH + shaders) is only needed while a photoreal render runs.
+const PathTraceRunner = lazy(() =>
+  import("./PathTraceRunner").then((m) => ({ default: m.PathTraceRunner }))
+);
 
 export interface RoomObjectData {
   id: string;
@@ -68,6 +76,13 @@ interface RoomViewerProps {
   focusView?: {
     cameraPosition: { x: number; y: number; z: number };
     target: { x: number; y: number; z: number };
+  } | null;
+  /** While set, the scene is path traced instead of rasterized. */
+  pathTrace?: {
+    job: PathTraceJob;
+    onProgress: (samples: number) => void;
+    onDone: (dataUrl: string) => void;
+    onError: (message: string) => void;
   } | null;
 }
 
@@ -251,8 +266,18 @@ export function RoomViewer({
   ceilingMaterial,
   onCameraSnapshot,
   focusView,
+  pathTrace,
 }: RoomViewerProps) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
+  // Walls are judged inside/outside against the floor-plan centre (origin for plain boxes).
+  const centroid = useMemo<[number, number]>(() => {
+    if (!floorPoints || floorPoints.length < 3) return [0, 0];
+    const n = floorPoints.length;
+    return [
+      floorPoints.reduce((a, p) => a + p.x, 0) / n,
+      floorPoints.reduce((a, p) => a + p.z, 0) / n,
+    ];
+  }, [floorPoints]);
   const focusKey = JSON.stringify(focusView ?? null);
 
   useEffect(() => {
@@ -345,8 +370,23 @@ export function RoomViewer({
 
           <MeasureLayer width={width} depth={depth} active={measureMode} />
 
+          {pathTrace && (
+            <PathTraceRunner
+              key={pathTrace.job.id}
+              job={pathTrace.job}
+              roomWidth={width}
+              roomDepth={depth}
+              roomHeight={height}
+              centroid={centroid}
+              onProgress={pathTrace.onProgress}
+              onDone={pathTrace.onDone}
+              onError={pathTrace.onError}
+            />
+          )}
+
           <OrbitControls
             makeDefault
+            enabled={!pathTrace}
             ref={controlsRef}
             maxPolarAngle={Math.PI / 2}
             minDistance={2}

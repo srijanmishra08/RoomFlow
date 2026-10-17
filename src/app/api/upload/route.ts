@@ -79,7 +79,9 @@ export async function POST(req: NextRequest) {
   let contentType = file.type;
   if (ext === "glb") {
     buffer = await optimizeGLB(rawBuffer);
-  } else if (isImage) {
+  } else if (isImage && category !== "render") {
+    // Renders arrive already encoded (WebP, full resolution) by the browser;
+    // re-encoding or downscaling them here would only degrade the image.
     const optimized = await optimizeImage(rawBuffer);
     buffer = optimized.buffer;
     storedExt = optimized.ext;

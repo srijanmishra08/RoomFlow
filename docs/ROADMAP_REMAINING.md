@@ -15,7 +15,8 @@ developer runs, not more code.
 - [x] Health/readiness endpoints (/api/health liveness, /api/health/ready DB probe → 503) + structured JSON logger (lib/logger.ts)
 
 ## Phase 8 — Rendering depth (match Foyr 4K/360)
-- [ ] Server GPU path-traced render queue (async, emailed when ready) — deferred, needs GPU worker infra
+- [x] Photoreal path-traced stills in the browser (`PathTraceRunner`, three-gpu-pathtracer): progressive GPU sampling with Draft / Standard / High presets, cutaway walls, ceiling-panel lighting + HDR environment, saved to the gallery. Runs on the viewer's GPU (WebGL2 + float textures), so no render-farm cost.
+- [ ] Server GPU render queue for headless / batch / very high-res renders (async, emailed when ready) — deferred, needs GPU worker infra
 - [x] Resolution presets (1080p / 4K) — client-side high-res capture via off-screen resize + re-render, RoomViewer `CaptureFn`
 - [x] 360° panorama capture — CubeCamera → 6-face equirectangular remap on canvas, `renderEquirect()` in RoomViewer.tsx
 - [ ] Render history versioning per revision (renders currently tag by roomId only)
@@ -62,6 +63,16 @@ developer runs, not more code.
 - [x] CSRF: same-site cookies (existing) + explicit origin/referer check on mutating `/api/*` requests in `src/proxy.ts` (Stripe webhook + NextAuth routes exempted)
 - [x] Team-aware ownership checks: `lib/authz.ts` now resolves accessible designer ids (own studio + ASSISTANT/VIEWER memberships) instead of single-owner-only
 - [x] Upload validation confirmed: server-side extension whitelist + 50MB size cap already enforced in `/api/upload`
+
+## Phase 14 — 2D image → 3D (this session)
+- [x] Floor-plan image → room outline: `lib/floorplan-vectorize.ts` (Otsu wall mask, thin-stroke removal, door-gap sealing, enclosed-space flood fill, boundary trace, RDP + orthogonal snapping). Pure TypeScript, runs in the browser; unit-tested on synthetic plans.
+- [x] `FloorPlanEditor` → **Import plan image**: detected rooms to choose from, plan shown as an aligned underlay, real-world scale from the longest wall, room width/depth synced, extruded to 3D by the existing wall/opening pipeline.
+- [x] Fixed polygon-wall orientation (walls were 90° off their edges), so traced and hand-drawn non-rectangular rooms now render correctly and openings line up with the 2D editor.
+- [x] Gallery saves of 4K/360°/photoreal renders now go through a browser-side WebP step (serverless request bodies cap at ~4.5 MB).
+- [ ] Door/window detection from the plan (today the designer places openings; they can be dragged along walls in the editor).
+- [ ] Hand-drawn / photographed / low-contrast plans and plans with colour-filled rooms need an ML segmentation model (e.g. CubiCasa-style) behind a worker — classical detection works best on clean, high-contrast plans.
+- [ ] Persist the plan underlay with the room (currently session-only).
+- [ ] Photo → 3D (single-image depth/scene reconstruction) — needs a hosted model.
 
 ## Priority order (remaining)
 1. `prisma db push` + `next build` on host, run E2E, deploy — see `docs/DEPLOYMENT.md`.

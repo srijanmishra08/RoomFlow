@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   },
   // Transpile Three.js packages
   transpilePackages: ["three", "@react-three/fiber", "@react-three/drei"],
+  // Native/WASM modules that resolve their own binaries via fs at runtime —
+  // bundling them breaks the lookup, so load them from node_modules instead.
+  serverExternalPackages: ["sharp", "draco3dgltf"],
   async headers() {
     const securityHeaders = [
       { key: "X-Frame-Options", value: "SAMEORIGIN" },

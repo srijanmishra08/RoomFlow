@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   // Compress before storing: Draco for GLB meshes, WebP re-encode for
   // raster images. Both fail open — original buffer is used on error.
-  let buffer = rawBuffer;
+  let buffer: Buffer = rawBuffer;
   let storedExt = ext;
   let contentType = file.type;
   if (ext === "glb") {
